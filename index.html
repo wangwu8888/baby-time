@@ -23,7 +23,7 @@
 </div>
 <div id="auth-step-room" class="hidden">
 <p class="auth-hint">把「我的配对码」发给TA，TA输入后你们就连上了</p>
-<div class="my-code-box"><span>我的配对码</span><strong id="my-pair-code"></strong></div>
+<div class="my-code-box"><span>我的配对码</span><strong id="my-pair-code" onclick="copyMyCode()" style="cursor:pointer" title="点击复制"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
 <input type="text" id="auth-code" class="auth-input" placeholder="TA的配对码" maxlength="20">
 <p class="auth-error" id="auth-error"></p>
 <button class="btn-primary btn-full" onclick="doJoin()">连接</button>
