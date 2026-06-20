@@ -105,7 +105,8 @@ var Sync = {
     var c = localStorage.getItem('sync_roomCode'), i = localStorage.getItem('sync_myId');
     if (!c || !i) return false;
     this.roomCode = c; this.myId = parseInt(i); this.onChange = cb;
-    this._startPolling();
+    this._poll(); this._poll(); this._startPolling();
+    if (cb) setTimeout(function(){ cb('ready'); }, 800);
     return true;
   },
 
