@@ -100,7 +100,6 @@
 <button class="tab-btn" data-view="treehole"><span class="tab-icon">🌳</span><span class="tab-label">树洞</span></button>
 <button class="tab-btn" data-view="settings"><span class="tab-icon">⚙️</span><span class="tab-label">设置</span></button>
 </nav>
-<button class="fab" title="写点什么给TA" onclick="Send.open()">+</button>
 </div>
 
 <div id="send-overlay" class="overlay hidden">
@@ -155,11 +154,6 @@
 <div id="modal-shared-entry" class="modal hidden">
 <div class="modal-backdrop"></div>
 <div class="modal-card"><h3 id="shared-entry-modal-title"></h3><div class="shared-entry-mood" id="shared-entry-modal-mood"></div><p class="shared-entry-text" id="shared-entry-modal-text"></p><img class="shared-entry-doodle" id="shared-entry-modal-doodle" style="display:none" alt="涂鸦"><button class="btn-secondary btn-full" onclick="document.getElementById('modal-shared-entry').classList.add('hidden')">关闭</button></div>
-</div>
-
-<div id="modal-first-run" class="modal hidden">
-<div class="modal-backdrop"></div>
-<div class="modal-card"><div class="first-run-icon">🌤️</div><h3>欢迎来到心情气象台</h3><p class="first-run-desc">请选择你的身份：</p><button class="btn-primary btn-full" id="btn-role-boy">🙋‍♂️ 我是男生</button><button class="btn-primary btn-full" id="btn-role-girl" style="background:var(--accent-red)">🙋‍♀️ 我是女生</button></div>
 </div>
 
 <div id="toast" class="toast hidden"></div>
