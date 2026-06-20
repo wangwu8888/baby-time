@@ -228,29 +228,40 @@ var Sync = {
 
   // --- actions ---
 
-  updateMood: function(st) {
+  updateMood: function(st, retry) {
+    retry = retry || 0;
     var self = this;
     if (!this.roomCode) return;
     var q = 'room_code=eq.' + encodeURIComponent(this.roomCode);
     this._get(q, function(rows) {
-      if (!rows || !rows.length) return;
+      if (!rows || !rows.length) {
+        if (retry < 3) { setTimeout(function() { self.updateMood(st, retry + 1); }, 1500); }
+        return;
+      }
       var d = rows[0]; self.rowId = d.id;
       var mk = 'user' + self.myId + '_mood';
       var mood = { status: st, updatedAt: new Date().toISOString() };
-      // Preserve existing photo field if any (leftover from v6, harmless)
       if (d[mk] && d[mk].photo) mood.photo = d[mk].photo;
       var up = {}; up[mk] = mood;
       self._patch(d.id, up, function() { self._poll(); });
     });
   },
 
-  sendMessage: function(t, dd, mo) {
+  sendMessage: function(t, dd, mo, retry) {
+    retry = retry || 0;
     var self = this;
     return new Promise(function(resolve) {
       if (!self.roomCode) { resolve({ error: '未连接' }); return; }
       var q = 'room_code=eq.' + encodeURIComponent(self.roomCode);
       self._get(q, function(rows) {
-        if (!rows || !rows.length) { resolve({ error: '房间不存在' }); return; }
+        if (!rows || !rows.length) {
+          if (retry < 3) {
+            setTimeout(function() { self.sendMessage(t, dd, mo, retry + 1).then(resolve); }, 1500);
+          } else {
+            resolve({ error: '房间不存在' });
+          }
+          return;
+        }
         var d = rows[0];
         if (!d.messages) d.messages = [];
         d.messages.push({
