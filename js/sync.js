@@ -67,9 +67,12 @@ var Sync = {
 
   // --- pairing ---
 
-  joinRoom: function(code, myName) {
+  joinRoom: function(code, myCode, partnerCode) {
     var self = this;
     this.roomCode = code;
+    // Deterministic slot: alphabetically smaller code = user1
+    var sorted = [myCode, partnerCode].sort();
+    this._mySlot = sorted[0] === myCode ? 1 : 2;
     var q = 'room_code=eq.' + encodeURIComponent(code);
     var tries = 0;
 
@@ -78,21 +81,43 @@ var Sync = {
       self._get(q, function(rows) {
         if (rows && rows.length) {
           var d = rows[0]; self.rowId = d.id;
-          if (!d.user2_name || !d.user2_mood || !d.user2_mood.status) {
-            self.myId = 2;
-            self._patch(d.id, { user2_name: myName, user2_mood: { status: 'sunny', updatedAt: new Date().toISOString() } }, function() { self._finish(code); });
-          } else {
-            self.myId = d.user1_name === myName ? 1 : 2;
-            self._finish(code);
+          // Check if my pair code already stored in a slot
+          if (d.user1_name === myCode) { self.myId = 1; self._finish(code); return; }
+          if (d.user2_name === myCode) { self.myId = 2; self._finish(code); return; }
+          // Migration: old rooms used '我' as name — update the correct slot
+          if (d.user1_name === '我' && self._mySlot === 1) {
+            self.myId = 1;
+            self._patch(d.id, { user1_name: myCode }, function() { self._finish(code); });
+            return;
           }
+          if (d.user2_name === '我' && self._mySlot === 2) {
+            self.myId = 2;
+            self._patch(d.id, { user2_name: myCode }, function() { self._finish(code); });
+            return;
+          }
+          // Take the deterministic slot
+          var slotData = {};
+          if (self._mySlot === 1) {
+            self.myId = 1;
+            slotData.user1_name = myCode;
+          } else {
+            self.myId = 2;
+            slotData.user2_name = myCode;
+            slotData.user2_mood = { status: 'sunny', updatedAt: new Date().toISOString() };
+          }
+          self._patch(d.id, slotData, function() { self._finish(code); });
         } else {
           if (tries < 2) { setTimeout(go, 800); return; }
-          self.myId = 1;
-          self._post({
-            room_code: code, user1_name: myName,
+          self.myId = self._mySlot;
+          var row = {
+            room_code: code,
+            user1_name: self._mySlot === 1 ? myCode : partnerCode,
             user1_mood: { status: 'sunny', updatedAt: new Date().toISOString() },
-            user2_name: '', user2_mood: { status: 'sunny', updatedAt: null }, messages: []
-          }, function(r) {
+            user2_name: self._mySlot === 2 ? myCode : partnerCode,
+            user2_mood: { status: 'sunny', updatedAt: new Date().toISOString() },
+            messages: []
+          };
+          self._post(row, function(r) {
             if (r && r.id) self.rowId = r.id;
             self._finish(code);
           });
