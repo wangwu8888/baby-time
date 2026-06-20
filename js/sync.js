@@ -105,21 +105,15 @@ var Sync = {
     var c = localStorage.getItem('sync_roomCode'), i = localStorage.getItem('sync_myId');
     if (!c || !i) return false;
     this.roomCode = c; this.myId = parseInt(i); this.onChange = cb;
-    this._startPolling(); this._pollNow(2);
-    if (cb) setTimeout(function(){ cb('ready'); }, 600);
+    this._startPolling();
+    if (cb) setTimeout(function(){ cb('ready'); }, 500);
     return true;
   },
 
   _startPolling: function() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     var self = this;
-    this.timer = setInterval(function() { self._poll(); }, 1000);
-  },
-
-  _pollNow: function(n) {
-    if (!n) n = 1;
-    var self = this;
-    for (var i = 0; i < n; i++) { this._poll(); }
+    this.timer = setInterval(function() { self._poll(); }, 2000);
   },
 
   _poll: function() {
@@ -184,7 +178,7 @@ var Sync = {
       var mk = 'user' + self.myId + '_mood';
       var up = {};
       up[mk] = { status: st, updatedAt: new Date().toISOString() };
-      self._patch(d.id, up, function(){ self._pollNow(3); });
+      self._patch(d.id, up, function(){ self._poll(); });
     });
   },
 
@@ -205,7 +199,7 @@ var Sync = {
           createdAt: new Date().toISOString()
         });
         if (d.messages.length > 100) d.messages = d.messages.slice(-100);
-        self._patch(d.id, { messages: d.messages }, function() { self._pollNow(3); r({ success: true }); });
+        self._patch(d.id, { messages: d.messages }, function() { self._poll(); r({ success: true }); });
       });
     });
   },
