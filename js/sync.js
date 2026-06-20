@@ -52,36 +52,46 @@ var Sync = {
     var self = this;
     this.roomCode = code;
     var q = 'room_code=eq.' + encodeURIComponent(code);
+    var attempts = 0;
 
-    this._get(q, function(rows) {
-      if (rows && rows.length) {
-        var d = rows[0];
-        self.rowId = d.id;
-        if (!d.user2_name) {
-          self.myId = 2;
-          self._patch(d.id, { user2_name: myName, user2_mood: { status: 'sunny', updatedAt: new Date().toISOString() } }, function() {
+    function tryJoin() {
+      attempts++;
+      self._get(q, function(rows) {
+        if (rows && rows.length) {
+          var d = rows[0];
+          self.rowId = d.id;
+          if (!d.user2_name || !d.user2_mood || !d.user2_mood.status) {
+            self.myId = 2;
+            self._patch(d.id, { user2_name: myName, user2_mood: { status: 'sunny', updatedAt: new Date().toISOString() } }, function() {
+              self._finish(code);
+            });
+          } else {
+            self.myId = d.user1_name === myName ? 1 : 2;
+            self._finish(code);
+          }
+        } else {
+          if (attempts < 2) {
+            // Retry once after short delay
+            setTimeout(tryJoin, 800);
+            return;
+          }
+          self.myId = 1;
+          var row = {
+            room_code: code,
+            user1_name: myName,
+            user1_mood: { status: 'sunny', updatedAt: new Date().toISOString() },
+            user2_name: '',
+            user2_mood: { status: 'sunny', updatedAt: null },
+            messages: []
+          };
+          self._post(row, function(r) {
+            if (r && r.id) self.rowId = r.id;
             self._finish(code);
           });
-        } else {
-          self.myId = 1;
-          self._finish(code);
         }
-      } else {
-        self.myId = 1;
-        var row = {
-          room_code: code,
-          user1_name: myName,
-          user1_mood: { status: 'sunny', updatedAt: new Date().toISOString() },
-          user2_name: '',
-          user2_mood: { status: 'sunny', updatedAt: null },
-          messages: []
-        };
-        self._post(row, function(r) {
-          self.rowId = r.id;
-          self._finish(code);
-        });
-      }
-    });
+      });
+    }
+    tryJoin();
   },
 
   _finish: function(code) {
@@ -161,10 +171,15 @@ var Sync = {
   updateMood: function(st) {
     var self = this;
     if (!this.roomCode) return;
-    var mk = 'user' + this.myId + '_mood';
-    var up = {};
-    up[mk] = { status: st, updatedAt: new Date().toISOString() };
-    this._patch(this.rowId, up);
+    var q = 'room_code=eq.' + encodeURIComponent(this.roomCode);
+    this._get(q, function(rows) {
+      if (!rows || !rows.length) return;
+      var d = rows[0]; self.rowId = d.id;
+      var mk = 'user' + self.myId + '_mood';
+      var up = {};
+      up[mk] = { status: st, updatedAt: new Date().toISOString() };
+      self._patch(d.id, up);
+    });
   },
 
   sendMessage: function(t, dd, mo) {
