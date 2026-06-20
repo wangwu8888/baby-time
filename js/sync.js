@@ -216,7 +216,7 @@ var Sync = {
       }
       if (nc > 0) {
         this.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
-        if (this.partnerMessages.length > 50) this.partnerMessages.length = 50;
+        if (this.partnerMessages.length > 100) this.partnerMessages.length = 100;
         changed = true;
       }
     }
@@ -257,7 +257,7 @@ var Sync = {
           sender: self.myId, text: t || '', doodleDataUrl: dd || null,
           mood: mo || 'sunny', createdAt: new Date().toISOString()
         });
-        if (d.messages.length > 40) d.messages = d.messages.slice(-40);
+        if (d.messages.length > 100) d.messages = d.messages.slice(-100);
         self._patch(d.id, { messages: d.messages }, function() { self._poll(); resolve({ success: true }); });
       });
     });
