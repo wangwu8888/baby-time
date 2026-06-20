@@ -137,11 +137,6 @@ var Sync = {
       }
     }
 
-    // Partner name
-    if (d[pk + 'name']) {
-      localStorage.setItem('sync_partnerName', d[pk + 'name']);
-    }
-
     // Messages from partner
     if (d.messages && d.messages.length) {
       var nc = 0;
