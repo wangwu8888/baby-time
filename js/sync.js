@@ -130,6 +130,7 @@ var Sync = {
   _finish: function(code) {
     localStorage.setItem('sync_roomCode', code);
     localStorage.setItem('sync_myId', String(this.myId));
+    if (typeof Crypto !== 'undefined') Crypto.init(code);
     this._startPolling();
     if (this.onChange) this.onChange('ready');
   },
@@ -140,6 +141,7 @@ var Sync = {
     var c = localStorage.getItem('sync_roomCode'), i = localStorage.getItem('sync_myId');
     if (!c || !i) return false;
     this.roomCode = c; this.myId = parseInt(i); this.onChange = cb;
+    if (typeof Crypto !== 'undefined') Crypto.init(c);
     this._startPolling();
     return true;
   },
@@ -204,6 +206,7 @@ var Sync = {
 
     if (d.messages && d.messages.length) {
       var nc = 0;
+      var fresh = [];
       for (var i = 0; i < d.messages.length; i++) {
         var m = d.messages[i];
         if (m.sender === pi) {
@@ -211,19 +214,39 @@ var Sync = {
           for (var j = 0; j < this.partnerMessages.length; j++) {
             if (this.partnerMessages[j].createdAt === m.createdAt) { seen = true; break; }
           }
-          if (!seen) { this.partnerMessages.unshift(m); nc++; }
+          if (!seen) {
+            var clone = { sender: m.sender, text: m.text, doodleDataUrl: m.doodleDataUrl, mood: m.mood, createdAt: m.createdAt, hasPhoto: m.hasPhoto };
+            this.partnerMessages.unshift(clone); fresh.push(clone); nc++;
+          }
         }
       }
       if (nc > 0) {
         this.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
         if (this.partnerMessages.length > 100) this.partnerMessages.length = 100;
         changed = true;
+        // async decrypt — fires onChange again when done
+        this._decryptMessages(fresh);
       }
     }
 
     if (changed && this.onChange) {
       this.onChange('data');
     }
+  },
+
+  _decryptMessages: function(msgs) {
+    var self = this;
+    if (typeof Crypto === 'undefined' || !Crypto._ready) return;
+    if (!msgs.length) return;
+    var tasks = [];
+    for (var i = 0; i < msgs.length; i++) {
+      (function(m) {
+        tasks.push(Crypto.decrypt(m.text).then(function(plain) { m.text = plain; }));
+      })(msgs[i]);
+    }
+    Promise.all(tasks).then(function() {
+      if (self.onChange) self.onChange('data');
+    });
   },
 
   // --- actions ---
@@ -250,26 +273,31 @@ var Sync = {
   sendMessage: function(t, dd, mo, retry) {
     retry = retry || 0;
     var self = this;
-    return new Promise(function(resolve) {
-      if (!self.roomCode) { resolve({ error: '未连接' }); return; }
-      var q = 'room_code=eq.' + encodeURIComponent(self.roomCode);
-      self._get(q, function(rows) {
-        if (!rows || !rows.length) {
-          if (retry < 3) {
-            setTimeout(function() { self.sendMessage(t, dd, mo, retry + 1).then(resolve); }, 1500);
-          } else {
-            resolve({ error: '房间不存在' });
+    // Encrypt text if crypto available
+    var encryptPromise = (typeof Crypto !== 'undefined' && Crypto._ready)
+      ? Crypto.encrypt(t || '') : Promise.resolve(t || '');
+    return encryptPromise.then(function(encText) {
+      return new Promise(function(resolve) {
+        if (!self.roomCode) { resolve({ error: '未连接' }); return; }
+        var q = 'room_code=eq.' + encodeURIComponent(self.roomCode);
+        self._get(q, function(rows) {
+          if (!rows || !rows.length) {
+            if (retry < 3) {
+              setTimeout(function() { self.sendMessage(t, dd, mo, retry + 1).then(resolve); }, 1500);
+            } else {
+              resolve({ error: '房间不存在' });
+            }
+            return;
           }
-          return;
-        }
-        var d = rows[0];
-        if (!d.messages) d.messages = [];
-        d.messages.push({
-          sender: self.myId, text: t || '', doodleDataUrl: dd || null,
-          mood: mo || 'sunny', createdAt: new Date().toISOString()
+          var d = rows[0];
+          if (!d.messages) d.messages = [];
+          d.messages.push({
+            sender: self.myId, text: encText, doodleDataUrl: dd || null,
+            mood: mo || 'sunny', createdAt: new Date().toISOString()
+          });
+          if (d.messages.length > 100) d.messages = d.messages.slice(-100);
+          self._patch(d.id, { messages: d.messages }, function() { self._poll(); resolve({ success: true }); });
         });
-        if (d.messages.length > 100) d.messages = d.messages.slice(-100);
-        self._patch(d.id, { messages: d.messages }, function() { self._poll(); resolve({ success: true }); });
       });
     });
   },
