@@ -22,17 +22,12 @@
 <button class="btn-primary btn-full" onclick="goRoomStep()">下一步</button>
 </div>
 <div id="auth-step-room" class="hidden">
-<p class="auth-hint">和TA约定一个配对码，输入后进入同一房间</p>
-<input type="text" id="auth-code" class="auth-input" placeholder="配对码（如：1314）" maxlength="20">
+<p class="auth-hint">把「我的配对码」发给TA，TA输入后你们就连上了</p>
+<div class="my-code-box"><span>我的配对码</span><strong id="my-pair-code"></strong></div>
+<input type="text" id="auth-code" class="auth-input" placeholder="TA的配对码" maxlength="20">
 <p class="auth-error" id="auth-error"></p>
-<button class="btn-primary btn-full" onclick="doJoin()">进入</button>
-<button class="btn-text" onclick="goNameStep()">← 返回修改昵称</button>
-</div>
-<div id="auth-step-waiting" class="hidden">
-<div class="auth-waiting-icon">⏳</div>
-<p class="auth-desc">等待TA输入配对码 <strong id="auth-code-display"></strong></p>
-<p class="auth-hint">对方输入相同配对码后自动连接</p>
-<button class="btn-text" onclick="goRoomStep()">取消等待</button>
+<button class="btn-primary btn-full" onclick="doJoin()">连接</button>
+<button class="btn-text" onclick="goNameStep()">← 返回</button>
 </div>
 </div>
 </div>
