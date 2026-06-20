@@ -245,11 +245,10 @@ var Sync = {
       }
     }
 
-    // Partner's latest photo (stored as separate column to keep messages small)
-    var photoKey = pk + 'photo';
-    if (d[photoKey]) {
-      if (!this._partnerPhoto || this._partnerPhoto !== d[photoKey]) {
-        this._partnerPhoto = d[photoKey];
+    // Partner's latest photo (stored inside mood JSONB)
+    if (d[pk + 'mood'] && d[pk + 'mood'].photo) {
+      if (!this._partnerPhoto || this._partnerPhoto !== d[pk + 'mood'].photo) {
+        this._partnerPhoto = d[pk + 'mood'].photo;
         changed = true;
       }
     }
@@ -271,7 +270,10 @@ var Sync = {
       var d = rows[0]; self.rowId = d.id;
       var mk = 'user' + self.myId + '_mood';
       var up = {};
-      up[mk] = { status: st, updatedAt: new Date().toISOString() };
+      var newMood = { status: st, updatedAt: new Date().toISOString() };
+      // Preserve existing photo if any
+      if (d[mk] && d[mk].photo) newMood.photo = d[mk].photo;
+      up[mk] = newMood;
       self._patch(d.id, up, function(){ self._poll(); });
     });
   },
@@ -300,7 +302,7 @@ var Sync = {
     });
   },
 
-  // Share photo: stored as separate column so messages stay small
+  // Share photo: stored inside userX_mood JSONB to work with existing schema
   sharePhoto: function(photoDataUrl) {
     var self = this;
     return new Promise(function(r) {
@@ -309,9 +311,12 @@ var Sync = {
       self._get(q, function(rows) {
         if (!rows || !rows.length) { r({ error: '房间不存在' }); return; }
         var d = rows[0];
-        var photoKey = 'user' + self.myId + '_photo';
+        var mk = 'user' + self.myId + '_mood';
         var up = {};
-        up[photoKey] = photoDataUrl;
+        // Merge photo into existing mood object
+        var mood = d[mk] || { status: 'sunny', updatedAt: new Date().toISOString() };
+        mood.photo = photoDataUrl;
+        up[mk] = mood;
         // Also add a marker message so partner knows there's a new photo
         if (!d.messages) d.messages = [];
         d.messages.push({
