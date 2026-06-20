@@ -7,7 +7,16 @@ var Sync = {
   BASE: 'https://dunadheorduiyxmfzlfu.supabase.co/rest/v1/sync_data',
   KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1bmFkaGVvcmR1aXl4bWZ6bGZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTQ0ODksImV4cCI6MjA5NzQ3MDQ4OX0.s8a5FLcmYmHv-1IaidLnu_5VRxJf6JEvsl8u20MpZcA',
 
-  init: function(cb) { this.onChange = cb; },
+  init: function(cb) {
+    this.onChange = cb;
+    var self = this;
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) self._onVisible();
+    });
+    window.addEventListener('pageshow', function() {
+      if (self.roomCode) self._startPolling();
+    });
+  },
 
   _h: function() {
     return {
@@ -110,6 +119,20 @@ var Sync = {
     return true;
   },
 
+  // --- visibility handling (mobile browser kills timers in background) ---
+
+  _lastPollOk: 0,  // timestamp of last successful poll
+
+  _onVisible: function() {
+    var self = this;
+    if (!this.roomCode) return;
+    // If page was hidden > 3s, restart polling fresh
+    var gap = new Date() - this._lastPollOk;
+    if (gap > 3000) {
+      this._startPolling();
+    }
+  },
+
   // --- polling with safe lock ---
 
   _startPolling: function() {
@@ -129,6 +152,7 @@ var Sync = {
     this._get(q, function(rows) {
       if (rows && rows.length) {
         self.rowId = rows[0].id;
+        self._lastPollOk = new Date();
         try { self._process(rows[0]); } catch(e) {}
       }
       self._polling = 0;
