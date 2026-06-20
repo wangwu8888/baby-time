@@ -1,8 +1,8 @@
-// Supabase Polling Sync v4 - retry + immediate reconnect
+// Supabase Polling Sync v5 - concurrent-safe + photo support
 var Sync = {
   myId: null, roomCode: null, rowId: null,
   myMood: null, partnerMood: null, partnerMessages: [],
-  onChange: null, timer: null,
+  onChange: null, timer: null, _polling: false,
 
   BASE: 'https://dunadheorduiyxmfzlfu.supabase.co/rest/v1/sync_data',
   KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1bmFkaGVvcmR1aXl4bWZ6bGZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTQ0ODksImV4cCI6MjA5NzQ3MDQ4OX0.s8a5FLcmYmHv-1IaidLnu_5VRxJf6JEvsl8u20MpZcA',
@@ -185,26 +185,29 @@ var Sync = {
     var c = localStorage.getItem('sync_roomCode'), i = localStorage.getItem('sync_myId');
     if (!c || !i) return false;
     this.roomCode = c; this.myId = parseInt(i); this.onChange = cb;
-    this._startPolling();  // _startPolling now polls immediately
+    this._startPolling();
     return true;
   },
 
   _startPolling: function() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     var self = this;
-    self._poll();  // immediate first poll, don't wait 2s
+    self._poll();
     this.timer = setInterval(function() { self._poll(); }, 2000);
   },
 
   _poll: function() {
     var self = this;
     if (!this.roomCode) return;
+    if (this._polling) return;  // prevent concurrent polls
+    this._polling = true;
     var q = 'room_code=eq.' + encodeURIComponent(this.roomCode);
     this._get(q, function(rows) {
       if (rows && rows.length) {
-        self.rowId = rows[0].id;  // always keep rowId fresh
+        self.rowId = rows[0].id;
         self._process(rows[0]);
       }
+      self._polling = false;
     });
   },
 
@@ -214,12 +217,10 @@ var Sync = {
     var mk = 'user' + this.myId + '_';
     var pk = 'user' + pi + '_';
 
-    // My mood
     if (d[mk + 'mood'] && d[mk + 'mood'].status) {
       this.myMood = d[mk + 'mood'];
     }
 
-    // Partner mood
     if (d[pk + 'mood'] && d[pk + 'mood'].status) {
       var pm = d[pk + 'mood'];
       if (!this.partnerMood || this.partnerMood.updatedAt !== pm.updatedAt) {
@@ -228,7 +229,7 @@ var Sync = {
       }
     }
 
-    // Messages from partner
+    // Messages from partner (text only, photos handled separately)
     if (d.messages && d.messages.length) {
       var nc = 0;
       for (var i = 0; i < d.messages.length; i++) {
@@ -244,10 +245,22 @@ var Sync = {
       }
     }
 
+    // Partner's latest photo (stored as separate column to keep messages small)
+    var photoKey = pk + 'photo';
+    if (d[photoKey]) {
+      if (!this._partnerPhoto || this._partnerPhoto !== d[photoKey]) {
+        this._partnerPhoto = d[photoKey];
+        changed = true;
+      }
+    }
+
     if (changed && this.onChange) {
       this.onChange('data');
     }
   },
+
+  _partnerPhoto: null,
+  getPartnerPhoto: function() { return this._partnerPhoto || null; },
 
   updateMood: function(st) {
     var self = this;
@@ -263,7 +276,8 @@ var Sync = {
     });
   },
 
-  sendMessage: function(t, dd, mo, ph) {
+  // Send text/doodle message (no photo - photos go via sharePhoto)
+  sendMessage: function(t, dd, mo) {
     var self = this;
     return new Promise(function(r) {
       if (!self.roomCode) { r({ error: '未连接' }); return; }
@@ -276,12 +290,41 @@ var Sync = {
           sender: self.myId,
           text: t || '',
           doodleDataUrl: dd || null,
-          photoDataUrl: ph || null,
           mood: mo || 'sunny',
           createdAt: new Date().toISOString()
         });
-        if (d.messages.length > 100) d.messages = d.messages.slice(-100);
+        // Keep messages lean
+        if (d.messages.length > 40) d.messages = d.messages.slice(-40);
         self._patch(d.id, { messages: d.messages }, function() { self._poll(); r({ success: true }); });
+      });
+    });
+  },
+
+  // Share photo: stored as separate column so messages stay small
+  sharePhoto: function(photoDataUrl) {
+    var self = this;
+    return new Promise(function(r) {
+      if (!self.roomCode) { r({ error: '未连接' }); return; }
+      var q = 'room_code=eq.' + encodeURIComponent(self.roomCode);
+      self._get(q, function(rows) {
+        if (!rows || !rows.length) { r({ error: '房间不存在' }); return; }
+        var d = rows[0];
+        var photoKey = 'user' + self.myId + '_photo';
+        var up = {};
+        up[photoKey] = photoDataUrl;
+        // Also add a marker message so partner knows there's a new photo
+        if (!d.messages) d.messages = [];
+        d.messages.push({
+          sender: self.myId,
+          text: '',
+          doodleDataUrl: null,
+          mood: 'sunny',
+          createdAt: new Date().toISOString(),
+          hasPhoto: true
+        });
+        if (d.messages.length > 40) d.messages = d.messages.slice(-40);
+        up.messages = d.messages;
+        self._patch(d.id, up, function() { self._poll(); r({ success: true }); });
       });
     });
   },
