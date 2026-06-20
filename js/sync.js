@@ -1,4 +1,4 @@
-// Supabase Polling Sync v3 - simple, reliable
+// Supabase Polling Sync v4 - retry + immediate reconnect
 var Sync = {
   myId: null, roomCode: null, rowId: null,
   myMood: null, partnerMood: null, partnerMessages: [],
@@ -18,33 +18,114 @@ var Sync = {
     };
   },
 
-  _get: function(q, cb) {
+  _get: function(q, cb, retry) {
+    retry = retry || 0;
+    var self = this;
     var x = new XMLHttpRequest();
     x.open('GET', this.BASE + '?' + q + '&limit=1', true);
     var h = this._h(); Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-    x.timeout = 12000;
-    x.onload = function() { if (x.status === 200) { try { cb(JSON.parse(x.responseText)); } catch(e) { cb(null); } } else { cb(null); } };
-    x.onerror = function() { cb(null); };
+    x.timeout = 8000;
+    var done = false;
+    x.onload = function() {
+      if (done) return; done = true;
+      if (x.status === 200) {
+        try { cb(JSON.parse(x.responseText)); } catch(e) { cb(null); }
+      } else if (retry < 2) {
+        setTimeout(function() { self._get(q, cb, retry + 1); }, 1000);
+      } else {
+        cb(null);
+      }
+    };
+    x.onerror = function() {
+      if (done) return; done = true;
+      if (retry < 2) {
+        setTimeout(function() { self._get(q, cb, retry + 1); }, 1000);
+      } else {
+        cb(null);
+      }
+    };
+    x.ontimeout = function() {
+      if (done) return; done = true;
+      if (retry < 2) {
+        setTimeout(function() { self._get(q, cb, retry + 1); }, 1000);
+      } else {
+        cb(null);
+      }
+    };
     x.send();
   },
 
-  _post: function(data, cb) {
+  _post: function(data, cb, retry) {
+    retry = retry || 0;
+    var self = this;
     var x = new XMLHttpRequest();
     x.open('POST', this.BASE, true);
     var h = this._h(); Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-    x.timeout = 12000;
-    x.onload = function() { if (x.status === 201) { try { var r = JSON.parse(x.responseText); cb(r.length ? r[0] : data); } catch(e) { cb(data); } } else { cb(data); } };
-    x.onerror = function() { cb(data); };
+    x.timeout = 8000;
+    var done = false;
+    x.onload = function() {
+      if (done) return; done = true;
+      if (x.status === 201) {
+        try { var r = JSON.parse(x.responseText); cb(r.length ? r[0] : data); } catch(e) { cb(data); }
+      } else if (retry < 2) {
+        setTimeout(function() { self._post(data, cb, retry + 1); }, 1000);
+      } else {
+        cb(data);
+      }
+    };
+    x.onerror = function() {
+      if (done) return; done = true;
+      if (retry < 2) {
+        setTimeout(function() { self._post(data, cb, retry + 1); }, 1000);
+      } else {
+        cb(data);
+      }
+    };
+    x.ontimeout = function() {
+      if (done) return; done = true;
+      if (retry < 2) {
+        setTimeout(function() { self._post(data, cb, retry + 1); }, 1000);
+      } else {
+        cb(data);
+      }
+    };
     x.send(JSON.stringify(data));
   },
 
-  _patch: function(id, data, cb) {
+  _patch: function(id, data, cb, retry) {
+    retry = retry || 0;
+    var self = this;
     var x = new XMLHttpRequest();
     x.open('PATCH', this.BASE + '?id=eq.' + id, true);
     var h = this._h(); Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-    x.timeout = 12000;
-    x.onload = function() { if (cb) cb(); };
-    x.onerror = function() { if (cb) cb(); };
+    x.timeout = 8000;
+    var done = false;
+    x.onload = function() {
+      if (done) return; done = true;
+      if (x.status === 204 || x.status === 200) {
+        if (cb) cb();
+      } else if (retry < 2) {
+        setTimeout(function() { self._patch(id, data, cb, retry + 1); }, 1000);
+      } else {
+        if (cb) cb();
+      }
+    };
+    x.onerror = function() {
+      if (done) return; done = true;
+      if (retry < 2) {
+        setTimeout(function() { self._patch(id, data, cb, retry + 1); }, 1000);
+      } else {
+        if (cb) cb();
+      }
+    };
+    x.ontimeout = function() {
+      if (done) return; done = true;
+      if (retry < 2) {
+        setTimeout(function() { self._patch(id, data, cb, retry + 1); }, 1000);
+      } else {
+        if (cb) cb();
+      }
+    };
     x.send(JSON.stringify(data));
   },
 
@@ -71,7 +152,6 @@ var Sync = {
           }
         } else {
           if (attempts < 2) {
-            // Retry once after short delay
             setTimeout(tryJoin, 800);
             return;
           }
@@ -105,14 +185,14 @@ var Sync = {
     var c = localStorage.getItem('sync_roomCode'), i = localStorage.getItem('sync_myId');
     if (!c || !i) return false;
     this.roomCode = c; this.myId = parseInt(i); this.onChange = cb;
-    this._startPolling();
-    if (cb) setTimeout(function(){ cb('ready'); }, 500);
+    this._startPolling();  // _startPolling now polls immediately
     return true;
   },
 
   _startPolling: function() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     var self = this;
+    self._poll();  // immediate first poll, don't wait 2s
     this.timer = setInterval(function() { self._poll(); }, 2000);
   },
 
@@ -122,6 +202,7 @@ var Sync = {
     var q = 'room_code=eq.' + encodeURIComponent(this.roomCode);
     this._get(q, function(rows) {
       if (rows && rows.length) {
+        self.rowId = rows[0].id;  // always keep rowId fresh
         self._process(rows[0]);
       }
     });
@@ -182,7 +263,7 @@ var Sync = {
     });
   },
 
-  sendMessage: function(t, dd, mo) {
+  sendMessage: function(t, dd, mo, ph) {
     var self = this;
     return new Promise(function(r) {
       if (!self.roomCode) { r({ error: '未连接' }); return; }
@@ -195,6 +276,7 @@ var Sync = {
           sender: self.myId,
           text: t || '',
           doodleDataUrl: dd || null,
+          photoDataUrl: ph || null,
           mood: mo || 'sunny',
           createdAt: new Date().toISOString()
         });
