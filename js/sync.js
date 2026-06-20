@@ -22,7 +22,7 @@ var Sync = {
     var x = new XMLHttpRequest();
     x.open('GET', this.BASE + '?' + q + '&limit=1', true);
     var h = this._h(); Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-    x.timeout = 8000;
+    x.timeout = 12000;
     x.onload = function() { if (x.status === 200) { try { cb(JSON.parse(x.responseText)); } catch(e) { cb(null); } } else { cb(null); } };
     x.onerror = function() { cb(null); };
     x.send();
@@ -32,7 +32,7 @@ var Sync = {
     var x = new XMLHttpRequest();
     x.open('POST', this.BASE, true);
     var h = this._h(); Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-    x.timeout = 8000;
+    x.timeout = 12000;
     x.onload = function() { if (x.status === 201) { try { var r = JSON.parse(x.responseText); cb(r.length ? r[0] : data); } catch(e) { cb(data); } } else { cb(data); } };
     x.onerror = function() { cb(data); };
     x.send(JSON.stringify(data));
@@ -42,7 +42,7 @@ var Sync = {
     var x = new XMLHttpRequest();
     x.open('PATCH', this.BASE + '?id=eq.' + id, true);
     var h = this._h(); Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-    x.timeout = 8000;
+    x.timeout = 12000;
     x.onload = function() { if (cb) cb(); };
     x.onerror = function() { if (cb) cb(); };
     x.send(JSON.stringify(data));
@@ -113,7 +113,7 @@ var Sync = {
     if (this.timer) clearInterval(this.timer);
     var self = this;
     this._poll();
-    this.timer = setInterval(function() { self._poll(); }, 2000);
+    this.timer = setInterval(function() { self._poll(); }, 1000);
   },
 
   _poll: function() {
@@ -178,7 +178,7 @@ var Sync = {
       var mk = 'user' + self.myId + '_mood';
       var up = {};
       up[mk] = { status: st, updatedAt: new Date().toISOString() };
-      self._patch(d.id, up);
+      self._patch(d.id, up, function(){ self._poll(); });
     });
   },
 
