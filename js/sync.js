@@ -1,8 +1,8 @@
-// Supabase Polling Sync v6 - dead-simple reliable
+// Supabase Polling Sync v7 - safe polling lock + no photo
 var Sync = {
   myId: null, roomCode: null, rowId: null,
   myMood: null, partnerMood: null, partnerMessages: [],
-  onChange: null, timer: null,
+  onChange: null, timer: null, _polling: 0,
 
   BASE: 'https://dunadheorduiyxmfzlfu.supabase.co/rest/v1/sync_data',
   KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1bmFkaGVvcmR1aXl4bWZ6bGZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTQ0ODksImV4cCI6MjA5NzQ3MDQ4OX0.s8a5FLcmYmHv-1IaidLnu_5VRxJf6JEvsl8u20MpZcA',
@@ -56,6 +56,8 @@ var Sync = {
   _post: function(data, cb) { this._ajax('POST', this.BASE, JSON.stringify(data), cb); },
   _patch: function(id, data, cb) { this._ajax('PATCH', this.BASE + '?id=eq.' + id, JSON.stringify(data), cb); },
 
+  // --- pairing ---
+
   joinRoom: function(code, myName) {
     var self = this;
     this.roomCode = code;
@@ -98,6 +100,8 @@ var Sync = {
     if (this.onChange) this.onChange('ready');
   },
 
+  // --- reconnect ---
+
   reconnect: function(cb) {
     var c = localStorage.getItem('sync_roomCode'), i = localStorage.getItem('sync_myId');
     if (!c || !i) return false;
@@ -105,6 +109,8 @@ var Sync = {
     this._startPolling();
     return true;
   },
+
+  // --- polling with safe lock ---
 
   _startPolling: function() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
@@ -116,11 +122,16 @@ var Sync = {
   _poll: function() {
     var self = this;
     if (!this.roomCode) return;
+    // safe lock: skip if another poll is in-flight (max 15s timeout to prevent deadlock)
+    if (this._polling && (new Date() - this._polling < 15000)) return;
+    this._polling = new Date();
     var q = 'room_code=eq.' + encodeURIComponent(this.roomCode);
     this._get(q, function(rows) {
-      if (!rows || !rows.length) return;
-      self.rowId = rows[0].id;
-      try { self._process(rows[0]); } catch(e) {}
+      if (rows && rows.length) {
+        self.rowId = rows[0].id;
+        try { self._process(rows[0]); } catch(e) {}
+      }
+      self._polling = 0;
     });
   },
 
@@ -138,11 +149,6 @@ var Sync = {
       var pm = d[pk + 'mood'];
       if (!this.partnerMood || this.partnerMood.updatedAt !== pm.updatedAt) {
         this.partnerMood = pm;
-        changed = true;
-      }
-      // Partner photo (stored in mood JSONB)
-      if (pm.photo && (!this._partnerPhoto || this._partnerPhoto !== pm.photo)) {
-        this._partnerPhoto = pm.photo;
         changed = true;
       }
     }
@@ -171,8 +177,7 @@ var Sync = {
     }
   },
 
-  _partnerPhoto: null,
-  getPartnerPhoto: function() { return this._partnerPhoto || null; },
+  // --- actions ---
 
   updateMood: function(st) {
     var self = this;
@@ -183,6 +188,7 @@ var Sync = {
       var d = rows[0]; self.rowId = d.id;
       var mk = 'user' + self.myId + '_mood';
       var mood = { status: st, updatedAt: new Date().toISOString() };
+      // Preserve existing photo field if any (leftover from v6, harmless)
       if (d[mk] && d[mk].photo) mood.photo = d[mk].photo;
       var up = {}; up[mk] = mood;
       self._patch(d.id, up, function() { self._poll(); });
@@ -204,31 +210,6 @@ var Sync = {
         });
         if (d.messages.length > 40) d.messages = d.messages.slice(-40);
         self._patch(d.id, { messages: d.messages }, function() { self._poll(); resolve({ success: true }); });
-      });
-    });
-  },
-
-  sharePhoto: function(photoDataUrl) {
-    var self = this;
-    return new Promise(function(resolve) {
-      if (!self.roomCode) { resolve({ error: '未连接' }); return; }
-      var q = 'room_code=eq.' + encodeURIComponent(self.roomCode);
-      self._get(q, function(rows) {
-        if (!rows || !rows.length) { resolve({ error: '房间不存在' }); return; }
-        var d = rows[0];
-        var mk = 'user' + self.myId + '_mood';
-        var mood = d[mk] || { status: 'sunny', updatedAt: new Date().toISOString() };
-        mood.photo = photoDataUrl;
-        var up = {}; up[mk] = mood;
-        // Marker message
-        if (!d.messages) d.messages = [];
-        d.messages.push({
-          sender: self.myId, text: '', doodleDataUrl: null,
-          mood: 'sunny', createdAt: new Date().toISOString(), hasPhoto: true
-        });
-        if (d.messages.length > 40) d.messages = d.messages.slice(-40);
-        up.messages = d.messages;
-        self._patch(d.id, up, function() { self._poll(); resolve({ success: true }); });
       });
     });
   },

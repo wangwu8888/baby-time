@@ -59,7 +59,6 @@
 
 <div class="card history-card"><div class="card-title">💬 TA的历史消息</div><div id="history-list"></div></div>
 <div class="card partner-doodle-card"><div class="card-title">🎨 今日涂鸦</div><div id="partner-doodle-content"><span class="empty-hint">等TA画点什么吧</span></div></div>
-<div class="card partner-photo-card"><div class="card-title">📷 TA的照片</div><div id="partner-photo-content"><span class="empty-hint">等TA分享照片吧</span></div></div>
 </div>
 
 <div id="view-treehole" class="view">
@@ -78,10 +77,8 @@
 </div>
 <div class="entry-submit-row">
 <button class="btn-secondary" onclick="Doodle.open()">🎨 涂鸦</button>
-<button class="btn-secondary" id="btn-photo-pick" onclick="TreeHole.pickPhoto()">📷 照片</button>
 <button class="btn-primary" onclick="TreeHole.saveNewEntry()">存入树洞</button>
 </div>
-<input type="file" id="photo-input" accept="image/*" style="display:none" onchange="TreeHole._onPhotoPicked(event)">
 </div>
 </div>
 <div class="entry-timeline" id="entry-timeline"><p class="empty-hint">还没有记录，写下第一条吧</p></div>
@@ -156,7 +153,7 @@
 
 <div id="modal-shared-entry" class="modal hidden">
 <div class="modal-backdrop"></div>
-<div class="modal-card"><h3 id="shared-entry-modal-title"></h3><div class="shared-entry-mood" id="shared-entry-modal-mood"></div><p class="shared-entry-text" id="shared-entry-modal-text"></p><img class="shared-entry-doodle" id="shared-entry-modal-doodle" style="display:none" alt="涂鸦"><img class="shared-entry-photo" id="shared-entry-modal-photo" style="display:none" alt="照片"><button class="btn-secondary btn-full" onclick="document.getElementById('modal-shared-entry').classList.add('hidden')">关闭</button></div>
+<div class="modal-card"><h3 id="shared-entry-modal-title"></h3><div class="shared-entry-mood" id="shared-entry-modal-mood"></div><p class="shared-entry-text" id="shared-entry-modal-text"></p><img class="shared-entry-doodle" id="shared-entry-modal-doodle" style="display:none" alt="涂鸦"><button class="btn-secondary btn-full" onclick="document.getElementById('modal-shared-entry').classList.add('hidden')">关闭</button></div>
 </div>
 
 <div id="toast" class="toast hidden"></div>
