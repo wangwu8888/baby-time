@@ -340,29 +340,43 @@ var seen = false;
   _notifyEnabled: false,
   requestNotify: function() {
     var self = this;
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) {
+      showToast('此浏览器不支持通知');
+      return;
+    }
     if (Notification.permission === 'granted') {
       self._notifyEnabled = true;
-    } else if (Notification.permission !== 'denied') {
-      Notification.requestPermission().then(function(p) {
-        if (p === 'granted') self._notifyEnabled = true;
-      });
+      self._updateNotifyUI();
+      showToast('通知已开启 ✅');
+      return;
     }
+    if (Notification.permission === 'denied') {
+      showToast('通知权限被拒绝，请在浏览器设置中开启');
+      return;
+    }
+    Notification.requestPermission().then(function(p) {
+      if (p === 'granted') {
+        self._notifyEnabled = true;
+        self._updateNotifyUI();
+        showToast('通知已开启 ✅');
+      } else {
+        showToast('通知未开启');
+      }
+    });
+  },
+  _updateNotifyUI: function() {
+    var btn = document.getElementById('btn-notify');
+    var desc = document.getElementById('setting-notify-desc');
+    if (btn) { btn.textContent = '已开启'; btn.disabled = true; }
+    if (desc) desc.textContent = '新消息时弹出系统通知 ✅';
   },
   _notify: function(title, body) {
-    if (!this._notifyEnabled || !('Notification' in window)) return;
-    if (typeof App !== 'undefined' && App.currentView === 'weather') return; // Don't notify if already looking
+    if (!this._notifyEnabled) return;
+    if (typeof App !== 'undefined' && App.currentView === 'weather') return;
     try {
-      var opts = { body: body || '', icon: '/baby-time/icon-192.png', tag: 'mood-msg', renotify: true };
-      // Use Service Worker if available, otherwise direct
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.ready.then(function(reg) {
-          reg.showNotification(title, opts);
-        });
-      } else {
-        var n = new Notification(title, opts);
-        setTimeout(function() { n.close(); }, 5000);
-      }
+      var opts = { body: body || '', tag: 'mood-msg', renotify: true };
+      var n = new Notification(title, opts);
+      setTimeout(function() { n.close(); }, 5000);
     } catch(e) {} // Silently fail if not supported
   },
 
