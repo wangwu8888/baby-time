@@ -75,12 +75,11 @@ function doCreateRoom(){
   document.getElementById('create-error').textContent='';
   if(typeof Sync!=='undefined') Sync.createRoom(pwd, function(result){
     if(result.error){document.getElementById('create-error').textContent=result.error;return}
-    document.getElementById('room-code-display').textContent=result.roomCode;
-    document.getElementById('room-waiting').classList.remove('hidden');
+    localStorage.setItem('room_password',pwd);
+    closePairing();
     showToast('房间已创建',2000);
-    // Update UI: show paired as "waiting" state
     if(typeof App!=='undefined') App._updatePairUI();
-    // Background poll will detect when partner joins
+    if(typeof Weather!=='undefined') Weather.refresh();
   });
 }
 
