@@ -105,7 +105,7 @@ renderInputBar:function(){
   var el=document.getElementById('input-bar-area');if(!el)return;
   var paired=!!Sync.partnerId;
   if(!paired){el.innerHTML='';return}
-  el.innerHTML='<div style="display:flex;gap:8px;align-items:center"><input id="msg-input" placeholder="说点什么…" style="flex:1;padding:10px 16px;border:1px solid var(--border);border-radius:24px;font-size:15px;font-family:var(--font);background:var(--bg-card);color:var(--text-primary);outline:none" onkeydown="if(event.key===\'Enter\')Weather.sendMsg()"><button class="btn-primary" onclick="Weather.sendMsg()" style="border-radius:24px;padding:10px 16px;flex-shrink:0">发送</button><button class="btn-secondary" onclick="Doodle.openSendMode()" style="border-radius:24px;flex-shrink:0">🎨</button></div>';
+  el.innerHTML='<div style="display:flex;gap:8px;align-items:center"><input id="msg-input" placeholder="说点什么…" style="flex:1;padding:10px 16px;border:1px solid var(--border);border-radius:24px;font-size:15px;font-family:var(--font);background:var(--bg-card);color:var(--text-primary);outline:none" onkeydown="if(event.key===\'Enter\')Weather.sendMsg()" onfocus="setTimeout(function(){var t=document.getElementById(\'timeline-area\');if(t)t.scrollTop=t.scrollHeight},300)"><button class="btn-primary" onclick="Weather.sendMsg()" style="border-radius:24px;padding:10px 16px;flex-shrink:0">发送</button><button class="btn-secondary" onclick="Doodle.openSendMode()" style="border-radius:24px;flex-shrink:0">🎨</button></div>';
 },
 
 sendMsg:function(){
