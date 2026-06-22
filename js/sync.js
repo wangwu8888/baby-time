@@ -198,8 +198,9 @@ var Sync = {
     if (this._polling && (new Date() - this._polling < 15000)) return;
     this._polling = new Date();
 
-    // Auto-discover partner if not yet found
-    if (!this.partnerId && this.roomId) {
+    // Check partner status every 10s (detect join and leave)
+    if (this.roomId && (!this._lastPartnerCheck || (new Date() - this._lastPartnerCheck > 10000))) {
+      this._lastPartnerCheck = new Date();
       this._loadPartner(function(){});
     }
 
