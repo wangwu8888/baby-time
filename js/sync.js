@@ -287,18 +287,8 @@ var seen = false;
             }
             if (hasNewFromPartner) {
               self._flashTitle();
-              // After decrypt, show notification with message preview
-              Promise.all(decryptPromises).then(function() {
-                var lastPartnerMsg = '';
-                for (var p = self.partnerMessages.length - 1; p >= 0; p--) {
-                  if (self.partnerMessages[p].sender === 'partner') {
-                    lastPartnerMsg = self.partnerMessages[p].text || '给你发了一条消息';
-                    break;
-                  }
-                }
-                var pn = localStorage.getItem('sync_partnerName') || 'TA';
-                self._notify('💬 ' + pn + '的消息', lastPartnerMsg);
-              });
+              // Show unread badge on chat tab
+              self._showBadge();
             }
           }
         }
@@ -336,54 +326,15 @@ var seen = false;
     }
   },
 
-  // ========== Browser Notification ==========
-  _notifyEnabled: false,
-  requestNotify: function() {
-    var self = this;
-    if (!('Notification' in window)) {
-      // Fallback: title flash + toast still work
-      showToast('当前浏览器不支持系统通知，但标题闪烁和横幅提醒仍然生效 📳');
-      self._notifyEnabled = false;
-      // Still mark as "enabled" for UI purposes (title flash is the fallback)
-      document.getElementById('setting-notify-desc').textContent = '标题闪烁提醒已就绪（系统通知不支持）';
-      var btn = document.getElementById('btn-notify');
-      if (btn) { btn.textContent = '已就绪'; btn.disabled = true; }
-      return;
-    }
-    if (Notification.permission === 'granted') {
-      self._notifyEnabled = true;
-      self._updateNotifyUI();
-      showToast('通知已开启 ✅');
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      showToast('通知权限被拒绝，请在浏览器设置中开启');
-      return;
-    }
-    Notification.requestPermission().then(function(p) {
-      if (p === 'granted') {
-        self._notifyEnabled = true;
-        self._updateNotifyUI();
-        showToast('通知已开启 ✅');
-      } else {
-        showToast('通知未开启');
-      }
-    });
+  // ========== Tab Badge (unread indicator) ==========
+  _showBadge: function() {
+    if (typeof App !== 'undefined' && App.currentView === 'chat') return; // Already looking
+    var tab = document.querySelector('.tab-btn[data-view="chat"]');
+    if (tab) tab.classList.add('has-badge');
   },
-  _updateNotifyUI: function() {
-    var btn = document.getElementById('btn-notify');
-    var desc = document.getElementById('setting-notify-desc');
-    if (btn) { btn.textContent = '已开启'; btn.disabled = true; }
-    if (desc) desc.textContent = '新消息时弹出系统通知 ✅';
-  },
-  _notify: function(title, body) {
-    if (!this._notifyEnabled) return;
-    if (typeof App !== 'undefined' && (App.currentView === 'weather' || App.currentView === 'chat')) return;
-    try {
-      var opts = { body: body || '', tag: 'mood-msg', renotify: true };
-      var n = new Notification(title, opts);
-      setTimeout(function() { n.close(); }, 5000);
-    } catch(e) {} // Silently fail if not supported
+  clearBadge: function() {
+    var tab = document.querySelector('.tab-btn[data-view="chat"]');
+    if (tab) tab.classList.remove('has-badge');
   },
 
   // ========== Actions ==========
