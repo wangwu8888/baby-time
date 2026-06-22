@@ -48,7 +48,7 @@ renderTimeline:function(){
   if(!ms.length&&!myMood.updatedAt){el.innerHTML='<div class="card"><p class="empty-hint">还没有消息，分享第一条心情吧</p></div>';return}
 
   var items=[];
-  ms.forEach(function(m){items.push({type:m.type||'text',text:m.text,doodleDataUrl:m.doodleDataUrl,mood:m.mood,createdAt:m.createdAt||m.created_at,sender:'partner'})});
+  ms.forEach(function(m){items.push({type:m.type||'text',text:m.text,doodleDataUrl:m.doodleDataUrl,mood:m.mood,createdAt:m.createdAt||m.created_at,sender:m.sender||'partner'})});
   if(!items.length){el.innerHTML='<div class="card"><p class="empty-hint">等TA分享点什么吧</p></div>';return}
 
   items.sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt)});

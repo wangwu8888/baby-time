@@ -186,7 +186,6 @@ var Sync = {
 
   _startPolling: function() {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    this.partnerMessages = [];
     var self = this;
     self._poll();
     this.timer = setInterval(function() { self._poll(); }, 2500);
