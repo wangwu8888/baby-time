@@ -161,7 +161,7 @@ var Sync = {
     this.roomCode = code;
     this.roomId = rid;
     this.userId = uid;
-    this.partnerId = localStorage.getItem('sync_partnerId') || null;
+    this.partnerId = null; // Will be discovered by _loadPartner
     this.partnerName = localStorage.getItem('sync_partnerName') || 'TA';
     this.onChange = cb;
 
