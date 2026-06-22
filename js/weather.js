@@ -66,8 +66,11 @@ renderTimeline:function(){
       var moodIcon=MOOD_CONFIG[it.mood]?MOOD_CONFIG[it.mood].icon:'';
       var row=document.createElement('div');
       if(it.type==='mood_change'){
+        // Only show partner's mood changes, skip my own
+        if(it.sender==='me')return;
+        var pn=localStorage.getItem('sync_partnerName')||'TA';
         row.style.cssText='text-align:center;padding:4px 0;font-size:12px;color:var(--text-dim)';
-        row.textContent=moodIcon+' 心情更新';
+        row.textContent=pn+' '+moodIcon+' 心情更新';
       }else{
         var isPartner=it.sender!=='me';
         row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');
