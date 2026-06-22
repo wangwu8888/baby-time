@@ -8,6 +8,7 @@ function groupByDate(a){var g={};a.forEach(function(e){var k=formatDate(e.create
 function escapeHtml(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
 function $(s){return document.querySelector(s)}
 function $$(s){return document.querySelectorAll(s)}
+function copyText(t){if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){showToast('已复制：'+t,1500)}).catch(function(){prompt('长按复制：',t)})}else{prompt('长按复制：',t)}}
 function showToast(m,d){if(!d)d=2000;var t=$('#toast');if(!t)return;t.textContent=m;t.classList.remove('hidden');requestAnimationFrame(function(){t.classList.add('show')});setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.classList.add('hidden')},300)},d)}
 // Mood config
 var MOOD_CONFIG={sunny:{icon:'☀️',label:'晴朗'},cloudy:{icon:'☁️',label:'多云'},rainy:{icon:'🌧️',label:'雨天'},storm:{icon:'⛈️',label:'雷暴'},love:{icon:'❤️',label:'爱心'},dnd:{icon:'🔕',label:'勿扰'}};
