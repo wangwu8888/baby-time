@@ -76,25 +76,53 @@ onDoodleSaved:function(d){Doodle.pendingDoodle=d;showToast('涂鸦已暂存，�
 renderMemorial:function(){
   var el=document.getElementById('memorial-section');if(!el)return;
   if(typeof Sync==='undefined'||!Sync.partnerId){el.innerHTML='';return}
-  var html='<div class="card"><div class="card-title">💝 我们的纪念墙</div>';
-  html+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer" onclick="TreeHole._annOpen=!TreeHole._annOpen;TreeHole.renderMemorial()"><span style="font-weight:600;font-size:14px">'+(this._annOpen?'▼':'▶')+' 纪念日</span><button class="btn-text" onclick="event.stopPropagation();TreeHole._addAnniversary()">+ 添加</button></div>';
-  html+=this._annOpen?'<div id="anniversary-list" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">':'';
-  var anns=JSON.parse(localStorage.getItem('anniversaries')||'[]');
-  anns.forEach(function(a,i){
-    var days=Math.floor((new Date()-new Date(a.date))/86400000);
-    html+='<div style="min-width:120px;background:var(--bg);border-radius:12px;padding:12px;text-align:center;flex-shrink:0"><div style="font-size:24px">'+a.emoji+'</div><div style="font-size:13px;font-weight:500;margin:4px 0">'+escapeHtml(a.name)+'</div><div style="font-size:11px;color:var(--text-dim)">第 '+days+' 天</div><div style="font-size:10px;color:var(--text-dim)">'+a.date+'</div><button class="btn-text btn-danger" style="font-size:10px;margin-top:4px" onclick="TreeHole._delAnniversary('+i+')">删除</button></div>';
-  });
-  html+=this._annOpen?'</div>':'';
-  html+='</div>';
-  html+='<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer" onclick="TreeHole._wishOpen=!TreeHole._wishOpen;TreeHole.renderMemorial()"><span style="font-weight:600;font-size:14px">'+(this._wishOpen?'▼':'▶')+' 愿望清单</span><button class="btn-text" onclick="event.stopPropagation();TreeHole._addWish()">+ 添加</button></div>';
-  html+=this._wishOpen?'<div id="wish-list">':'';
-  var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');
-  wishes.forEach(function(w,i){
-    html+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="cursor:pointer;font-size:18px" onclick="TreeHole._toggleWish('+i+')">'+(w.done?'☑':'☐')+'</span><span style="flex:1;font-size:14px;text-decoration:'+(w.done?'line-through':'none')+';color:'+(w.done?'var(--text-dim)':'var(--text)')+'">'+escapeHtml(w.text)+'</span><button class="btn-text btn-danger" style="font-size:10px" onclick="TreeHole._delWish('+i+')">删除</button></div>';
-  });
-  html+=this._wishOpen?'</div>':'';
-  html+='</div></div>';
-  el.innerHTML=html;
+  var self=this;
+  el.innerHTML='';
+  var card=document.createElement('div');card.className='card';
+  card.innerHTML='<div class="card-title">💝 我们的纪念墙</div>';
+
+  // Anniversaries
+  var annWrap=document.createElement('div');annWrap.style.marginBottom='12px';
+  var annHeader=document.createElement('div');annHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
+  annHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._annOpen?'▼':'▶')+' 纪念日</span><button class="btn-text">+ 添加</button>';
+  annHeader.querySelector('button').addEventListener('click',function(e){e.stopPropagation();self._addAnniversary()});
+  annHeader.addEventListener('click',function(){self._annOpen=!self._annOpen;self.renderMemorial()});
+  annWrap.appendChild(annHeader);
+  if(this._annOpen){
+    var annList=document.createElement('div');annList.style.cssText='display:flex;gap:10px;overflow-x:auto;padding-bottom:4px';
+    var anns=JSON.parse(localStorage.getItem('anniversaries')||'[]');
+    anns.forEach(function(a,i){
+      var days=Math.floor((new Date()-new Date(a.date))/86400000);
+      var item=document.createElement('div');item.style.cssText='min-width:120px;background:var(--bg);border-radius:12px;padding:12px;text-align:center;flex-shrink:0';
+      item.innerHTML='<div style="font-size:24px">'+a.emoji+'</div><div style="font-size:13px;font-weight:500;margin:4px 0">'+escapeHtml(a.name)+'</div><div style="font-size:11px;color:var(--text-dim)">第 '+days+' 天</div><div style="font-size:10px;color:var(--text-dim)">'+a.date+'</div><button class="btn-text btn-danger" style="font-size:10px;margin-top:4px">删除</button>';
+      item.querySelector('button').addEventListener('click',function(){self._delAnniversary(i)});
+      annList.appendChild(item);
+    });
+    annWrap.appendChild(annList);
+  }
+  card.appendChild(annWrap);
+
+  // Wishes
+  var wishWrap=document.createElement('div');
+  var wishHeader=document.createElement('div');wishHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
+  wishHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._wishOpen?'▼':'▶')+' 愿望清单</span><button class="btn-text">+ 添加</button>';
+  wishHeader.querySelector('button').addEventListener('click',function(e){e.stopPropagation();self._addWish()});
+  wishHeader.addEventListener('click',function(){self._wishOpen=!self._wishOpen;self.renderMemorial()});
+  wishWrap.appendChild(wishHeader);
+  if(this._wishOpen){
+    var wishList=document.createElement('div');
+    var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');
+    wishes.forEach(function(w,i){
+      var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)';
+      row.innerHTML='<span style="cursor:pointer;font-size:18px">'+(w.done?'☑':'☐')+'</span><span style="flex:1;font-size:14px;text-decoration:'+(w.done?'line-through':'none')+';color:'+(w.done?'var(--text-dim)':'var(--text)')+'">'+escapeHtml(w.text)+'</span><button class="btn-text btn-danger" style="font-size:10px">删除</button>';
+      row.querySelector('span').addEventListener('click',function(){self._toggleWish(i)});
+      row.querySelector('button').addEventListener('click',function(){self._delWish(i)});
+      wishList.appendChild(row);
+    });
+    wishWrap.appendChild(wishList);
+  }
+  card.appendChild(wishWrap);
+  el.appendChild(card);
 },
 
 _addAnniversary:function(){
