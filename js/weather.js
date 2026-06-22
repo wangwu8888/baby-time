@@ -81,7 +81,7 @@ renderTimeline:function(){
           var txt=it.text||'';if(txt.length>100)txt=txt.substring(0,100)+'…';
           bubble.textContent=txt;
         }
-        bubble.addEventListener('click',function(){showToast(moodIcon+' '+formatFull(it.createdAt),2500)});
+        bubble.addEventListener('click',function(){showToast(moodIcon+' '+formatDateFull(it.createdAt),2500)});
         bubble.style.cursor='pointer';
         row.appendChild(bubble);
       }
@@ -103,10 +103,14 @@ renderInputBar:function(){
 sendMsg:function(){
   var inp=document.getElementById('msg-input');if(!inp)return;
   var t=inp.value.trim();if(!t)return;
-  if(Sync.roomCode)Sync.sendMessage(t,null,'sunny');
-  inp.value='';
-  showToast('已发送',1500);
-  setTimeout(function(){Weather.refresh()},500);
+  if(!Sync.roomCode||!Sync.userId){showToast('未连接，请先配对');return}
+  var self=this;
+  Sync.sendMessage(t,null,'sunny').then(function(r){
+    if(r&&r.error){showToast('发送失败，请重试');return}
+    inp.value='';
+    showToast('已发送',1500);
+    setTimeout(function(){self.refresh()},500);
+  });
 },
 
 _showFull:function(src){

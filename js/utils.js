@@ -64,7 +64,6 @@ function showJoinRoom(){
   document.getElementById('join-password').value='';
   document.getElementById('join-error').textContent='';
 }
-function cancelCreate(){closePairing();if(typeof Sync!=='undefined'&&Sync.roomCode)Sync.leave()}
 function copyRoomCode(){
   var c=document.getElementById('room-code-display').textContent;
   if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var e=document.getElementById('copy-hint');if(e){e.style.display='block';setTimeout(function(){e.style.display='none'},1500)}}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}

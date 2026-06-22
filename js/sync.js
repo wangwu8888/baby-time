@@ -15,6 +15,7 @@ var Sync = {
     var uid = localStorage.getItem('user_id');
     if (uid) {
       this.userId = uid;
+      localStorage.setItem('sync_userId', uid);
       SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
         if (!rows || !rows.length) {
           var nick = localStorage.getItem('sync_partnerName') || '我';
@@ -29,6 +30,7 @@ var Sync = {
       });
       this.userId = uid;
       localStorage.setItem('user_id', uid);
+      localStorage.setItem('sync_userId', uid);
       SUPABASE.post('users', { user_id: uid, nickname: '' }, function() { cb(); });
     }
   },
@@ -149,6 +151,9 @@ var Sync = {
     localStorage.setItem('sync_roomCode', code);
     localStorage.setItem('sync_roomId', this.roomId);
     localStorage.setItem('sync_userId', this.userId);
+    localStorage.setItem('user_id', this.userId);
+    // Initialize encryption with room code
+    if (typeof Crypto !== 'undefined') Crypto.init(code);
     this._startPolling();
     if (this.onChange) this.onChange('ready');
   },
@@ -167,6 +172,8 @@ var Sync = {
     this.partnerId = null; // Will be discovered by _loadPartner
     this.partnerName = localStorage.getItem('sync_partnerName') || 'TA';
     this.onChange = cb;
+    // Restore encryption
+    if (typeof Crypto !== 'undefined') Crypto.init(code);
 
     var self = this;
     SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
@@ -227,6 +234,7 @@ var Sync = {
       SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=30', function(rows) {
         if (rows && rows.length) {
           var nc = 0;
+          var decryptPromises = [];
           for (var i = rows.length - 1; i >= 0; i--) {
             var m = rows[i];
 var seen = false;
@@ -242,9 +250,11 @@ var seen = false;
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
                 self.partnerMessages.push(msgObj);
-                // Decrypt if needed
+                // Decrypt if needed — wait for all decrypts before notifying UI
                 if (c.encrypted && typeof Crypto !== 'undefined' && Crypto._ready) {
-                  Crypto.decrypt(c.text).then(function(plain) { msgObj.text = plain; });
+                  decryptPromises.push(
+                    Crypto.decrypt(c.text).then(function(plain) { msgObj.text = plain; })
+                  );
                 }
                 nc++;
               }
@@ -255,7 +265,8 @@ var seen = false;
             changed = true;
           }
         }
-        check();
+        // Wait for all decryptions to finish before notifying UI
+        Promise.all(decryptPromises).then(function() { check(); });
       });
     } else { check(); }
   },
