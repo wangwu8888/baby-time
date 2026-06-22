@@ -152,6 +152,11 @@ var Sync = {
     if (this._polling && (new Date() - this._polling < 15000)) return;
     this._polling = new Date();
 
+    // Auto-discover partner if not yet found
+    if (!this.partnerId && this.roomId) {
+      this._loadPartner(function(){});
+    }
+
     var done = 0, changed = false;
     function check() { done++; if (done >= 2) { self._polling = 0; if (changed && self.onChange) self.onChange('data'); } }
 
