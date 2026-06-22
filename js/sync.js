@@ -48,39 +48,36 @@ var Sync = {
 
   // ========== Room / Pairing ==========
 
-  // Create a new room (room code = my invite code)
+  // Generate random room code (fresh each time, like 网易云一起听)
+  _generateRoomCode: function() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', code = '';
+    for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  },
+
+  // Create a new room (always fresh random code)
   createRoom: function(password, cb) {
     var self = this;
     this._initUser(function() {
-      var code = self._getInviteCode();
+      // Leave any existing room first
+      if (self.roomId) self.leave();
+
+      var code = self._generateRoomCode();
       var pwdHash = self._hashCode(code + password);
       self.roomCode = code;
-      // First, clean up any old room with same code
-      SUPABASE.get('rooms', 'room_code=eq.' + encodeURIComponent(code) + '&limit=1', function(rows) {
-        function makeRoom() {
-          SUPABASE.post('rooms', {
-            room_code: code, password_hash: pwdHash,
-            creator_user_id: self.userId, member_count: 1
-          }, function(newRoom) {
-            if (newRoom && newRoom.length) {
-              self.roomId = newRoom[0].id;
-              SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
-                self._finish(code);
-                self._startPolling();
-                cb({ roomCode: code });
-              });
-            } else {
-              cb({ error: '创建失败' });
-            }
+      SUPABASE.post('rooms', {
+        room_code: code, password_hash: pwdHash,
+        creator_user_id: self.userId, member_count: 1
+      }, function(newRoom) {
+        if (newRoom && newRoom.length) {
+          self.roomId = newRoom[0].id;
+          SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
+            self._finish(code);
+            self._startPolling();
+            cb({ roomCode: code });
           });
-        }
-        if (rows && rows.length) {
-          // Delete old room first
-          var oldId = rows[0].id;
-          SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(oldId), function() {});
-          SUPABASE.delete('rooms', 'id=eq.' + oldId, function() { makeRoom(); });
         } else {
-          makeRoom();
+          cb({ error: '创建失败，请重试' });
         }
       });
     });
