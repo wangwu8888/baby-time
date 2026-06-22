@@ -99,27 +99,40 @@ var Sync = {
   _loadPartner: function(cb) {
     var self = this;
     if (!this.roomId) { cb(); return; }
-    var hadPartner = !!this.partnerId;
+    var hadPartner = this.partnerId;
     SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
+      var foundPartner = null;
       if (members) {
         for (var i = 0; i < members.length; i++) {
           if (members[i].user_id !== self.userId) {
-            var isNew = !self.partnerId;
-            self.partnerId = members[i].user_id;
-            SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(self.partnerId) + '&limit=1', function(users) {
-              if (users && users.length) {
-                self.partnerName = users[0].nickname || 'TA';
-              }
-              localStorage.setItem('sync_partnerId', self.partnerId);
-              localStorage.setItem('sync_partnerName', self.partnerName || 'TA');
-              if (isNew && self.onChange) self.onChange('paired');
-              cb();
-            });
-            return;
+            foundPartner = members[i].user_id;
+            break;
           }
         }
       }
-      cb();
+      if (foundPartner) {
+        var isNew = !hadPartner;
+        self.partnerId = foundPartner;
+        SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(foundPartner) + '&limit=1', function(users) {
+          if (users && users.length) {
+            self.partnerName = users[0].nickname || 'TA';
+          }
+          localStorage.setItem('sync_partnerId', self.partnerId);
+          localStorage.setItem('sync_partnerName', self.partnerName || 'TA');
+          if (isNew && self.onChange) self.onChange('paired');
+          cb();
+        });
+      } else {
+        // No partner found
+        if (hadPartner && self.onChange) self.onChange('partner_left');
+        self.partnerId = null;
+        self.partnerName = null;
+        self.partnerMood = null;
+        self.partnerMessages = [];
+        localStorage.removeItem('sync_partnerId');
+        localStorage.removeItem('sync_partnerName');
+        cb();
+      }
     });
   },
 
