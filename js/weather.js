@@ -56,10 +56,12 @@ renderTimeline:function(){
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';
   card.innerHTML='<div class="card-title">💬 对话</div>';
+  var scroll=document.createElement('div');scroll.style.cssText='min-height:200px';
+  scroll.id='timeline-scroll';
 
   var self=this;
   Object.keys(groups).forEach(function(day){
-    var dl=document.createElement('div');dl.style.cssText='text-align:center;padding:8px 0;font-size:11px;color:var(--text-dim)';dl.textContent=day;card.appendChild(dl);
+    var dl=document.createElement('div');dl.style.cssText='text-align:center;padding:8px 0;font-size:11px;color:var(--text-dim)';dl.textContent=day;scroll.appendChild(dl);
     groups[day].forEach(function(it){
       var moodIcon=MOOD_CONFIG[it.mood]?MOOD_CONFIG[it.mood].icon:'';
       var row=document.createElement('div');
@@ -85,10 +87,10 @@ renderTimeline:function(){
         bubble.style.cursor='pointer';
         row.appendChild(bubble);
       }
-      card.appendChild(row);
+      scroll.appendChild(row);
     });
   });
-  el.appendChild(card);
+  card.appendChild(scroll);el.appendChild(card);
   // Auto-scroll to bottom
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
