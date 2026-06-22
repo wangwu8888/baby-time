@@ -1,18 +1,14 @@
 // 心情气象台 v3.0 — 入口
 import { AppShell } from './ui/app-shell.js';
-import { migrateIfNeeded } from '../migration/migrate-from-v2.js';
 
 document.addEventListener('DOMContentLoaded', async function() {
-  // 先尝试迁移旧数据
-  try {
-    var result = await migrateIfNeeded();
-    if (result.migrated) {
-      console.log('v2 → v3 迁移完成，' + (result.messageCount || 0) + ' 条消息已迁移');
-    }
-  } catch (e) {
-    console.error('迁移检查失败:', e);
-  }
+  var shell = document.getElementById('app-shell');
+  if (!shell) return;
 
-  // 启动应用
-  AppShell.start();
+  try {
+    await AppShell.start();
+  } catch (e) {
+    console.error('App error:', e);
+    shell.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif"><h2 style="color:#F97316">加载失败</h2><p style="color:#999;margin:12px 0">' + e.message + '</p><button onclick="location.reload()" style="background:#F97316;color:white;border:none;padding:12px 24px;border-radius:12px;font-size:16px;cursor:pointer">重新加载</button></div>';
+  }
 });
