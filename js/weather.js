@@ -13,7 +13,7 @@ renderStatus:function(){
     var pwd=localStorage.getItem('room_password')||'';
     el.innerHTML='<div class="card" style="text-align:center"><div style="font-size:40px;margin-bottom:8px">⏳</div><p style="font-size:14px;color:var(--text-secondary);margin-bottom:4px">等待TA加入…</p><div class="my-code-box"><span>房间号（点击复制）</span><strong style="cursor:pointer" onclick="copyText(\''+code+'\')">'+code+'</strong></div>'+(pwd?'<p style="font-size:12px;color:var(--text-dim);cursor:pointer" onclick="navigator.clipboard.writeText(\''+pwd+'\');showToast(\'已复制密码\',1500)">密码：'+pwd+'（点击复制）</p>':'')+'<button class="btn-text btn-danger" onclick="leaveAndReset()" style="margin-top:8px">退出房间</button></div>';
   }else{
-    el.innerHTML='<div class="card" style="text-align:center"><p style="font-size:15px;color:var(--text-secondary);padding:12px 0">你还没有小窝<br>创建一个小窝，或加入TA的</p><div style="display:flex;gap:8px;justify-content:center"><button class="btn-primary" onclick="openPairing();showCreateRoom()">🏠 创建小窝</button><button class="btn-secondary" onclick="openPairing();showJoinRoom()">🔑 加入小窝</button></div></div>';
+    el.innerHTML='<div class="card" style="text-align:center"><p style="font-size:15px;color:var(--text-secondary);padding:12px 0">连接TA，开始你们的小窝</p><div style="display:flex;gap:8px;justify-content:center"><button class="btn-primary" onclick="openPairing();showCreateRoom()">🏠 创建小窝</button><button class="btn-secondary" onclick="openPairing();showJoinRoom()">🔑 加入小窝</button></div></div>';
   }
 },
 
