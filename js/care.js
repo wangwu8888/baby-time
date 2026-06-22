@@ -105,9 +105,27 @@ var Care = {
     try { localStorage.setItem('care_mood_history', JSON.stringify(history)); } catch(e) {}
   },
 
+  // Record partner's mood for weekly report
+  recordTaMood: function(status) {
+    var history = this._getTaMoodHistory();
+    var today = new Date().toDateString();
+    for (var i = history.length - 1; i >= 0; i--) {
+      if (history[i].date === today) { history[i].status = status; try { localStorage.setItem('care_ta_mood_history', JSON.stringify(history)); } catch(e) {} return; }
+    }
+    history.push({ status: status, date: today });
+    if (history.length > 30) history = history.slice(-30);
+    try { localStorage.setItem('care_ta_mood_history', JSON.stringify(history)); } catch(e) {}
+  },
+
   _getMoodHistory: function() {
     try {
       return JSON.parse(localStorage.getItem('care_mood_history') || '[]');
+    } catch(e) { return []; }
+  },
+
+  _getTaMoodHistory: function() {
+    try {
+      return JSON.parse(localStorage.getItem('care_ta_mood_history') || '[]');
     } catch(e) { return []; }
   },
 

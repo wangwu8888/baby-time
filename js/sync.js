@@ -236,6 +236,8 @@ var Sync = {
           var pm = { status: rows[0].status, updatedAt: rows[0].updated_at };
           if (!self.partnerMood || self.partnerMood.updatedAt !== rows[0].updated_at) {
             self.partnerMood = pm; changed = true;
+            // Record partner mood for weekly report
+            if (typeof Care !== 'undefined') Care.recordTaMood(pm.status);
           }
         }
         check();
