@@ -1,2 +1,18 @@
-var App={currentView:'weather',init:function(){var ni=document.getElementById('auth-name');if(ni)ni.addEventListener('keydown',function(e){if(e.key==='Enter')goRoomStep()});var ci=document.getElementById('auth-code');if(ci)ci.addEventListener('keydown',function(e){if(e.key==='Enter')doJoin()});Sync.init(function(){Weather.refresh()});try{if(Sync.reconnect(function(){Weather.refresh()})){this.showApp()}else{document.getElementById('screen-auth').style.display='flex'}}catch(e){document.getElementById('screen-auth').style.display='flex'}var bds=document.querySelectorAll('.modal-backdrop');for(var i=0;i<bds.length;i++){bds[i].addEventListener('click',function(){this.parentElement.classList.add('hidden')})}},showApp:function(){document.getElementById('screen-auth').style.display='none';document.getElementById('app').classList.remove('hidden');this._bindTabs();this.initModules();this._loadSettings();Weather.refresh()},initModules:function(){Weather.init();TreeHole.init();Doodle.init();Send.init()},_bindTabs:function(){var s=this;var bs=document.querySelectorAll('.tab-btn');for(var i=0;i<bs.length;i++){bs[i].addEventListener('click',function(){s.switchView(this.dataset.view)})}},switchView:function(v){if(this.currentView===v)return;var ws=document.querySelectorAll('.view');for(var i=0;i<ws.length;i++)ws[i].classList.remove('active');var t=document.getElementById('view-'+v);if(t)t.classList.add('active');var bs=document.querySelectorAll('.tab-btn');for(var j=0;j<bs.length;j++)bs[j].classList.toggle('active',bs[j].dataset.view===v);this.currentView=v;if(v==='weather')Weather.refresh();if(v==='treehole')TreeHole.refresh();if(v==='settings')this._loadSettings();if(t)t.scrollTop=0},_loadSettings:function(){var el=document.getElementById('setting-partner-name');if(el)el.textContent='当前："'+(localStorage.getItem('sync_partnerName')||'TA')+'"';var el2=document.getElementById('setting-room-code');if(el2)el2.textContent=Sync.roomCode?'配对码: '+Sync.roomCode:'未连接'}};
-document.addEventListener('DOMContentLoaded',function(){App.init()});
+// 心情气象台 v3.0 — 入口
+import { AppShell } from './ui/app-shell.js';
+import { migrateIfNeeded } from '../migration/migrate-from-v2.js';
+
+document.addEventListener('DOMContentLoaded', async function() {
+  // 先尝试迁移旧数据
+  try {
+    var result = await migrateIfNeeded();
+    if (result.migrated) {
+      console.log('v2 → v3 迁移完成，' + (result.messageCount || 0) + ' 条消息已迁移');
+    }
+  } catch (e) {
+    console.error('迁移检查失败:', e);
+  }
+
+  // 启动应用
+  AppShell.start();
+});

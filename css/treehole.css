@@ -1,0 +1,14 @@
+/* 树洞视图 */
+.entry-mood-select { display: flex; gap: 6px; margin-bottom: 10px; }
+.mood-stamp-btn.selected {
+  border-color: var(--primary) !important;
+  background: var(--bg) !important;
+  transform: scale(1.1);
+}
+.entry-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-bottom: 40px;
+}

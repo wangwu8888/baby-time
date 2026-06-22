@@ -1,0 +1,37 @@
+:root {
+  --bg:         #FFF7ED;
+  --card:       #FFFFFF;
+  --primary:    #F97316;
+  --primary-dim:#FDBA74;
+  --text:       #475569;
+  --text-dim:   #94A3B8;
+  --border:     #FED7AA;
+  --success:    #34D399;
+  --danger:     #F87171;
+  --online:     #22C55E;
+  --radius:     20px;
+  --radius-sm:  12px;
+  --radius-xs:  8px;
+  --shadow:     0 2px 12px rgba(0,0,0,0.06);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.10);
+  --font:       'Segoe UI', system-ui, -apple-system, sans-serif;
+  --tab-height: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --max-w: 480px;
+
+  /* 情绪背景色 */
+  --mood-sunny:  #FFF8E1;
+  --mood-cloudy: #F1F5F9;
+  --mood-rainy:  #EFF6FF;
+  --mood-storm:  #F5F3FF;
+  --mood-love:   #FFF1F2;
+  --mood-dnd:    #FAFAF8;
+
+  /* 情绪强调色 */
+  --accent-sunny:  #F59E0B;
+  --accent-cloudy: #64748B;
+  --accent-rainy:  #3B82F6;
+  --accent-storm:  #8B5CF6;
+  --accent-love:   #F43F5E;
+  --accent-dnd:    #9CA3AF;
+}
