@@ -156,7 +156,8 @@ var Sync = {
     localStorage.setItem('user_id', this.userId);
     var self = this;
     function doStart() { self._startPolling(); if (self.onChange) self.onChange('ready'); }
-    if (ENCRYPTION_ENABLED && typeof Crypto !== 'undefined') {
+    // Always init Crypto for decrypting old messages, even if new ones aren't encrypted
+    if (typeof Crypto !== 'undefined') {
       Crypto.init(code).then(doStart).catch(doStart);
     } else {
       doStart();
@@ -192,7 +193,8 @@ var Sync = {
         }
       });
     }
-    if (ENCRYPTION_ENABLED && typeof Crypto !== 'undefined') {
+    // Always init Crypto for decrypting old messages
+    if (typeof Crypto !== 'undefined') {
       Crypto.init(code).then(doConnect).catch(doConnect);
     } else {
       doConnect();
