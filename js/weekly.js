@@ -62,32 +62,21 @@ var Weekly = {
   },
 
   renderEntry: function() {
-    var el = document.getElementById('timeline-area');
-    if (!el) return;
-    // Check if entry already exists
-    if (document.getElementById('weekly-entry')) return;
-
-    var data = this._getWeekData();
+    if (!Sync.partnerId) return;
+    var pill = document.getElementById('weekly-pill');
+    if (!pill) return;
+    // Always show the small pill next to the room badge
+    pill.style.display = 'inline';
     var today = new Date();
-    var dayOfWeek = today.getDay(); // 0=Sun, 6=Sat
-    var isSunday = dayOfWeek === 0;
-
-    var entry = document.createElement('div');
-    entry.id = 'weekly-entry';
-    entry.className = 'card';
-    entry.style.cssText = 'text-align:center;cursor:pointer;margin-bottom:12px';
-    entry.innerHTML = '<div style="font-size:28px;margin-bottom:4px">📊</div><div style="font-size:14px;font-weight:600">本周心情周报</div><div style="font-size:11px;color:var(--text-secondary)">' + (isSunday ? '✨ 周报已生成' : '回顾这周的心情') + '</div>';
-    entry.addEventListener('click', function() { Weekly._openReport(data); });
-
-    // Insert before existing timeline content
-    if (el.firstChild) {
-      el.insertBefore(entry, el.firstChild);
-    } else {
-      el.appendChild(entry);
+    if (today.getDay() === 0) {
+      pill.textContent = '📊 周报';
+      pill.style.background = 'var(--accent-warm)';
+      pill.style.color = 'white';
     }
   },
 
-  _openReport: function(data) {
+  _openReport: function() {
+    var data = this._getWeekData();
     var self = this;
     var overlay = document.createElement('div');
     overlay.id = 'weekly-overlay';
@@ -222,8 +211,9 @@ var Weekly = {
   },
 
   refresh: function() {
-    var entry = document.getElementById('weekly-entry');
-    if (entry) entry.remove();
+    var pill = document.getElementById('weekly-pill');
+    if (!pill) return;
+    if (!Sync.partnerId) { pill.style.display = 'none'; return; }
     this.renderEntry();
   }
 };
