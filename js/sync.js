@@ -118,7 +118,9 @@ var Sync = {
             self.partnerName = users[0].nickname || 'TA';
           }
           localStorage.setItem('sync_partnerId', self.partnerId);
-          localStorage.setItem('sync_partnerName', self.partnerName || 'TA');
+          if (!localStorage.getItem('sync_partnerName_custom')) {
+            localStorage.setItem('sync_partnerName', self.partnerName || 'TA');
+          }
           if (isNew && self.onChange) self.onChange('paired');
           cb();
         });
@@ -131,6 +133,7 @@ var Sync = {
         self.partnerMessages = [];
         localStorage.removeItem('sync_partnerId');
         localStorage.removeItem('sync_partnerName');
+        localStorage.removeItem('sync_partnerName_custom');
         cb();
       }
     });
