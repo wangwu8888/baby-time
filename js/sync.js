@@ -227,8 +227,7 @@ var Sync = {
           var nc = 0;
           for (var i = rows.length - 1; i >= 0; i--) {
             var m = rows[i];
-            if (m.sender_user_id !== self.userId) {
-              var seen = false;
+var seen = false;
               for (var j = 0; j < self.partnerMessages.length; j++) {
                 if (self.partnerMessages[j].id === m.id) { seen = true; break; }
               }
@@ -236,7 +235,7 @@ var Sync = {
                 var c = m.content;
                 if (typeof c === 'string') { try { c = JSON.parse(c); } catch(e) { c = {}; } }
                 var msgObj = {
-                  id: m.id, sender: 2,
+                  id: m.id, sender: m.sender_user_id === self.userId ? 'me' : 'partner',
                   text: c.text || '', doodleDataUrl: m.type === 'doodle' ? (c.doodleDataUrl || c.text) : null,
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
@@ -248,7 +247,6 @@ var Sync = {
                 nc++;
               }
             }
-          }
           if (nc > 0) {
             self.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
             if (self.partnerMessages.length > 100) self.partnerMessages.length = 100;
