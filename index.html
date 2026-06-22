@@ -12,19 +12,9 @@
 </head>
 <body>
 
-<div id="screen-auth">
-<div class="auth-container">
-<div class="auth-icon">🏠</div>
-<h2>欢迎来到你的小窝</h2>
-<p class="auth-desc">一个人也可以好好记录情绪</p>
-<div id="auth-step-name">
-<input type="text" id="auth-name" class="auth-input" placeholder="你的昵称" maxlength="10">
-<button class="btn-primary btn-full" onclick="goEnterApp()">进入我的小窝</button>
-</div>
-</div>
-</div>
+<div id="screen-auth" style="display:none"></div>
 
-<div id="app" class="hidden">
+<div id="app">
 
 <div id="view-weather" class="view active">
 <header class="view-header"><h1>心情气象台</h1><span class="room-badge" id="room-badge"></span></header>
