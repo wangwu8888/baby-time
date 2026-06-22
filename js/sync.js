@@ -33,15 +33,26 @@ var Sync = {
     }
   },
 
+  // ========== Invite Code ==========
+
+  _getInviteCode: function() {
+    var code = localStorage.getItem('my_invite_code');
+    if (!code) {
+      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      code = '';
+      for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      localStorage.setItem('my_invite_code', code);
+    }
+    return code;
+  },
+
   // ========== Room / Pairing ==========
 
-  // Create a new room
+  // Create a new room (room code = my invite code)
   createRoom: function(password, cb) {
     var self = this;
     this._initUser(function() {
-      var code = '';
-      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      var code = self._getInviteCode();
       var pwdHash = self._hashCode(code + password);
       self.roomCode = code;
       SUPABASE.post('rooms', {
@@ -74,10 +85,8 @@ var Sync = {
         var pwdHash = self._hashCode(code + password);
         if (room.password_hash !== pwdHash) { cb({ error: '密码错误' }); return; }
         self.roomId = room.id;
-        // Check if already a member
         SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(self.userId), function(members) {
           if (members && members.length) {
-            // Already joined, just reconnect
             self._loadPartner(function() { self._finish(code); cb({ success: true }); });
           } else {
             SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
