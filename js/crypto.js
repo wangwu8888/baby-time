@@ -37,6 +37,7 @@ var Crypto = {
 
   decrypt: function(text) {
     if (!this._key) return Promise.resolve(text);
+    var self = this;
     var obj;
     try { obj = JSON.parse(text); } catch(e) { return Promise.resolve(text); }
     if (!obj || obj.e !== 1) return Promise.resolve(text);
