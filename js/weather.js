@@ -56,7 +56,7 @@ renderTimeline:function(){
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';
   card.innerHTML='<div class="card-title">💬 对话</div>';
-  var scroll=document.createElement('div');scroll.style.cssText='flex:1;overflow-y:auto;min-height:300px';
+  var scroll=document.createElement('div');scroll.style.cssText='flex:1;min-height:200px';
   scroll.id='timeline-scroll';
 
   var self=this;
@@ -92,7 +92,12 @@ renderTimeline:function(){
     });
   });
   card.appendChild(scroll);el.appendChild(card);
-  setTimeout(function(){scroll.scrollTop=scroll.scrollHeight},100);
+  // Auto-scroll to bottom
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      el.scrollTop = el.scrollHeight;
+    });
+  });
 },
 
 // Input bar (paired only)
