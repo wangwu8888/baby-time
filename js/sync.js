@@ -33,19 +33,6 @@ var Sync = {
     }
   },
 
-  // ========== Invite Code ==========
-
-  _getInviteCode: function() {
-    var code = localStorage.getItem('my_invite_code');
-    if (!code) {
-      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      code = '';
-      for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-      localStorage.setItem('my_invite_code', code);
-    }
-    return code;
-  },
-
   // ========== Room / Pairing ==========
 
   // Generate random room code (fresh each time, like 网易云一起听)

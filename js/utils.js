@@ -101,12 +101,6 @@ function doJoinRoom(){
   });
 }
 
-function resetInviteCode(){if(confirm('重置邀请码后，旧房间将失效。确定？')){localStorage.removeItem('my_invite_code');if(typeof Sync!=='undefined'&&Sync._getInviteCode){var nc=Sync._getInviteCode();showToast('新邀请码：'+nc,3000)}if(typeof App!=='undefined')App._loadSettings();if(typeof Weather!=='undefined')Weather.refresh()}}
-function copyInviteCode(){
-  var c=(typeof Sync!=='undefined'&&Sync._getInviteCode)?Sync._getInviteCode():localStorage.getItem('my_invite_code')||'';
-  if(!c){showToast('邀请码未生成');return}
-  if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){showToast('已复制',1500)}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}
-}
 function onPaired(){
   if(_waitingTimer){clearTimeout(_waitingTimer);_waitingTimer=null}
   document.getElementById('pairing-overlay').classList.add('hidden');
