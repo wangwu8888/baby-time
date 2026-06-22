@@ -46,6 +46,14 @@ var Sync = {
     return code;
   },
 
+  // Switch to a new room — clear old messages only if room actually changed
+  _switchRoom: function(newRoomId) {
+    if (this.roomId && this.roomId !== newRoomId) {
+      this.partnerMessages = [];
+      this.partnerMood = null;
+    }
+  },
+
   // Create a new room (always fresh random code)
   createRoom: function(password, cb) {
     var self = this;
@@ -62,6 +70,7 @@ var Sync = {
       }, function(newRoom) {
         if (newRoom && newRoom.length) {
           self.roomId = newRoom[0].id;
+          self._switchRoom(self.roomId);
           SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
             self._finish(code);
             self._startPolling();
@@ -86,6 +95,7 @@ var Sync = {
         var pwdHash = self._hashCode(code + password);
         if (room.password_hash !== pwdHash) { cb({ error: '密码错误' }); return; }
         self.roomId = room.id;
+        self._switchRoom(self.roomId);
         SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(self.userId), function(members) {
           if (members && members.length) {
             self._loadPartner(function() { self._finish(code); cb({ success: true }); });
@@ -408,6 +418,6 @@ var seen = false;
     localStorage.removeItem('sync_partnerName_custom');
     localStorage.removeItem('room_password');
     this.roomCode = null; this.roomId = null; this.partnerId = null; this.partnerName = null;
-    this.partnerMood = null; this.partnerMessages = []; this.myMood = null;
+    this.partnerMood = null; this.myMood = null;
   }
 };
