@@ -152,8 +152,8 @@ var Sync = {
     localStorage.setItem('sync_roomId', this.roomId);
     localStorage.setItem('sync_userId', this.userId);
     localStorage.setItem('user_id', this.userId);
-    // Initialize encryption with room code
-    if (typeof Crypto !== 'undefined') Crypto.init(code);
+    // Encryption temporarily disabled for debugging
+    // if (typeof Crypto !== 'undefined') Crypto.init(code);
     this._startPolling();
     if (this.onChange) this.onChange('ready');
   },
@@ -172,8 +172,8 @@ var Sync = {
     this.partnerId = null; // Will be discovered by _loadPartner
     this.partnerName = localStorage.getItem('sync_partnerName') || 'TA';
     this.onChange = cb;
-    // Restore encryption
-    if (typeof Crypto !== 'undefined') Crypto.init(code);
+    // Encryption temporarily disabled for debugging
+    // if (typeof Crypto !== 'undefined') Crypto.init(code);
 
     var self = this;
     SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
