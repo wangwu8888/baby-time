@@ -70,14 +70,17 @@ function copyRoomCode(){
 
 var _waitingTimer = null;
 function doCreateRoom(){
+  if(typeof Sync!=='undefined'&&Sync.roomCode){showToast('请先退出当前房间',2000);return}
   var pwd=document.getElementById('create-password').value.trim();
   if(pwd.length<4){document.getElementById('create-error').textContent='密码至少4位';return}
+  var btn=document.querySelector('#pairing-create .btn-primary');if(btn){btn.disabled=true;btn.textContent='创建中…'}
   document.getElementById('create-error').textContent='';
   if(typeof Sync!=='undefined') Sync.createRoom(pwd, function(result){
+    if(btn){btn.disabled=false;btn.textContent='创建'}
     if(result.error){document.getElementById('create-error').textContent=result.error;return}
     localStorage.setItem('room_password',pwd);
     closePairing();
-    showToast('房间已创建',2000);
+    showToast('房间已创建：'+result.roomCode,3000);
     if(typeof App!=='undefined') App._updatePairUI();
     if(typeof Weather!=='undefined') Weather.refresh();
   });
