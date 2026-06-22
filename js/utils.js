@@ -15,7 +15,7 @@ var MOOD_CONFIG={sunny:{icon:'☀️',label:'晴朗'},cloudy:{icon:'☁️',labe
 function getMyCode(){var c=localStorage.getItem('my_pair_code');if(!c){c='';var ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';for(var i=0;i<6;i++)c+=ch[Math.floor(Math.random()*ch.length)];localStorage.setItem('my_pair_code',c)}return c}
 function copyMyCode(){var c=getMyCode();if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var el=document.getElementById('copy-hint');if(el){el.style.display='block';setTimeout(function(){el.style.display='none'},1500)}}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}}
 function editPartnerName(){var c=localStorage.getItem('sync_partnerName')||'TA';var n=prompt('输入TA的称呼：',c);if(n&&n.trim()){localStorage.setItem('sync_partnerName',n.trim());try{var s=getSettings('ta');s.profileName=n.trim();saveSettings(s,'ta')}catch(e){}if(typeof Weather!=='undefined')Weather.refresh();if(typeof TreeHole!=='undefined')TreeHole.refresh()}}
-function leaveAndReset(){if(confirm('确定退出吗？')){if(typeof Sync!=='undefined')Sync.leave();localStorage.removeItem('sync_partnerName');document.getElementById('app').classList.add('hidden');goNameStep()}}
+function leaveAndReset(){if(confirm('确定退出房间吗？')){if(typeof Sync!=='undefined')Sync.leave();localStorage.removeItem('sync_partnerName');localStorage.removeItem('room_password');if(typeof App!=='undefined'){App._paired=false;App._updatePairUI()}if(typeof Weather!=='undefined')Weather.refresh();showToast('已退出房间',2000)}}
 function clearAllData(){if(confirm('确定清除本地数据吗？')){localStorage.clear();location.reload()}}
 function pickMood(s){var c=MOOD_CONFIG[s]||MOOD_CONFIG.sunny;var d={status:s,updatedAt:new Date().toISOString(),message:''};try{localStorage.setItem('moodState_me',JSON.stringify(d))}catch(e){}if(typeof Sync!=='undefined'&&Sync.roomCode)Sync.updateMood(s);var ie=document.getElementById('mood3d-icon');var le=document.getElementById('mood3d-label');if(ie)ie.textContent=c.icon;if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){if(os[i].getAttribute('data-mood')===s)os[i].classList.add('selected');else os[i].classList.remove('selected')}if(navigator.vibrate)navigator.vibrate(8);showToast('已更新 '+c.icon,1500)}
 function pickSendMood(m){if(typeof Send!=='undefined')Send.sendMood=m;var bs=document.querySelectorAll('#send-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){if(bs[i].getAttribute('data-mood')===m)bs[i].classList.add('selected');else bs[i].classList.remove('selected')}}
@@ -101,6 +101,7 @@ function doJoinRoom(){
   });
 }
 
+function resetInviteCode(){if(confirm('重置邀请码后，旧房间将失效。确定？')){localStorage.removeItem('my_invite_code');if(typeof Sync!=='undefined'&&Sync._getInviteCode){var nc=Sync._getInviteCode();showToast('新邀请码：'+nc,3000)}if(typeof App!=='undefined')App._loadSettings();if(typeof Weather!=='undefined')Weather.refresh()}}
 function copyInviteCode(){
   var c=(typeof Sync!=='undefined'&&Sync._getInviteCode)?Sync._getInviteCode():localStorage.getItem('my_invite_code')||'';
   if(!c){showToast('邀请码未生成');return}
