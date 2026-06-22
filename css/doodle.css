@@ -1,3 +1,0 @@
-/* 涂鸦画布 */
-.color-btn.active { border-color: var(--text) !important; transform: scale(1.2); }
-.size-btn.active { border-color: var(--primary) !important; background: var(--bg) !important; }
