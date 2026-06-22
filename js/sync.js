@@ -1,4 +1,6 @@
 // Sync v8 — new tables (users, rooms, messages, moods)
+// Encryption: disabled for stability. Set to true to re-enable.
+var ENCRYPTION_ENABLED = false;
 var Sync = {
   userId: null, roomId: null, roomCode: null,
   myId: 1,  // compatibility: truthy for old doJoin() check
@@ -153,9 +155,8 @@ var Sync = {
     localStorage.setItem('sync_userId', this.userId);
     localStorage.setItem('user_id', this.userId);
     var self = this;
-    // Wait for encryption key to be ready before polling
     function doStart() { self._startPolling(); if (self.onChange) self.onChange('ready'); }
-    if (typeof Crypto !== 'undefined') {
+    if (ENCRYPTION_ENABLED && typeof Crypto !== 'undefined') {
       Crypto.init(code).then(doStart).catch(doStart);
     } else {
       doStart();
@@ -191,7 +192,7 @@ var Sync = {
         }
       });
     }
-    if (typeof Crypto !== 'undefined') {
+    if (ENCRYPTION_ENABLED && typeof Crypto !== 'undefined') {
       Crypto.init(code).then(doConnect).catch(doConnect);
     } else {
       doConnect();
@@ -307,14 +308,14 @@ var seen = false;
     var self = this;
     return new Promise(function(resolve) {
       if (!self.roomId || !self.userId) { resolve({ error: '未连接' }); return; }
-      // Encrypt text if crypto available
-      var textPromise = (typeof Crypto !== 'undefined' && Crypto._ready)
-        ? Crypto.encrypt(t || '') : Promise.resolve(t || '');
+      // Encryption: only use if enabled AND Crypto is ready
+      var useEncryption = ENCRYPTION_ENABLED && typeof Crypto !== 'undefined' && Crypto._ready;
+      var textPromise = useEncryption ? Crypto.encrypt(t || '') : Promise.resolve(t || '');
       textPromise.then(function(encText) {
         var msg = {
           room_id: self.roomId, sender_user_id: self.userId,
           type: dd ? 'doodle' : 'text',
-          content: { text: encText, doodleDataUrl: dd || null, mood: mo || 'sunny', encrypted: typeof Crypto !== 'undefined' && Crypto._ready },
+          content: { text: encText, doodleDataUrl: dd || null, mood: mo || 'sunny', encrypted: useEncryption },
           created_at: new Date().toISOString()
         };
         SUPABASE.post('messages', msg, function(result) {
