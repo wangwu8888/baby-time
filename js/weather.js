@@ -112,7 +112,7 @@ sendMsg:function(){
     if(r&&r.error){showToast('发送失败，请重试');return}
     inp.value='';
     showToast('已发送',1500);
-    setTimeout(function(){self.refresh()},500);
+    self.renderTimeline();
   });
 },
 

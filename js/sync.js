@@ -208,7 +208,7 @@ var Sync = {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     var self = this;
     self._poll();
-    this.timer = setInterval(function() { self._poll(); }, 2500);
+    this.timer = setInterval(function() { self._poll(); }, 1500);
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden && self.roomCode) self._poll();
     });
@@ -220,8 +220,8 @@ var Sync = {
     if (this._polling && (new Date() - this._polling < 15000)) return;
     this._polling = new Date();
 
-    // Check partner status every 10s (detect join and leave)
-    if (this.roomId && (!this._lastPartnerCheck || (new Date() - this._lastPartnerCheck > 10000))) {
+    // Check partner status every 5s (detect join and leave)
+    if (this.roomId && (!this._lastPartnerCheck || (new Date() - this._lastPartnerCheck > 5000))) {
       this._lastPartnerCheck = new Date();
       this._loadPartner(function(){});
     }
