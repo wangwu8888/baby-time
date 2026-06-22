@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#FAFAF8">
-<title>心情气象台 v8</title>
+<title>心情气象台</title>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -14,45 +14,12 @@
 
 <div id="screen-auth">
 <div class="auth-container">
-<div class="auth-icon">🌤️</div>
-<h2>心情气象台</h2>
-<p class="auth-desc">与TA分享你的情绪</p>
+<div class="auth-icon">🏠</div>
+<h2>欢迎来到你的小窝</h2>
+<p class="auth-desc">一个人也可以好好记录情绪</p>
 <div id="auth-step-name">
-<input type="text" id="auth-name" class="auth-input" placeholder="TA的昵称（如：宝宝）" maxlength="10">
-<button class="btn-primary btn-full" onclick="goRoomStep()">下一步</button>
-</div>
-<div id="auth-step-room" class="hidden">
-<p class="auth-hint">创建属于你们的房间，或者加入TA的房间</p>
-<div id="room-choice">
-<button class="btn-primary btn-full" onclick="showCreateRoom()" style="margin-bottom:8px">🏗️ 创建房间</button>
-<button class="btn-secondary btn-full" onclick="showJoinRoom()">🔑 加入房间</button>
-</div>
-<div id="room-create" class="hidden">
-<input type="password" id="create-password" class="auth-input" placeholder="设置房间密码（4位以上）" maxlength="20">
-<p class="auth-error" id="create-error"></p>
-<button class="btn-primary btn-full" onclick="doCreateRoom()">创建</button>
-<div id="room-waiting" class="hidden" style="text-align:center">
-<div class="auth-waiting-icon">💫</div>
-<p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">等待TA加入…</p>
-<div class="my-code-box"><span>房间号</span><strong id="room-code-display" style="cursor:pointer" title="点击复制" onclick="copyRoomCode()"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
-<button class="btn-text" onclick="cancelCreate()">取消</button>
-</div>
-<button class="btn-text" onclick="goRoomStepBack()" style="margin-top:8px">← 返回</button>
-</div>
-<div id="room-join" class="hidden">
-<input type="text" id="join-code" class="auth-input" placeholder="输入TA的房间号" maxlength="10" style="text-transform:uppercase">
-<input type="password" id="join-password" class="auth-input" placeholder="输入房间密码" maxlength="20">
-<p class="auth-error" id="join-error"></p>
-<button class="btn-primary btn-full" onclick="doJoinRoom()">加入</button>
-<button class="btn-text" onclick="goRoomStepBack()" style="margin-top:8px">← 返回</button>
-</div>
-<!-- OLD elements removed, new elements above -->
-<p class="auth-hint" style="display:none">把「我的配对码」发给TA，TA输入后你们就连上了</p>
-<div class="my-code-box"><span>我的配对码</span><strong id="my-pair-code" onclick="copyMyCode()" style="cursor:pointer" title="点击复制"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
-<input type="text" id="auth-code" class="auth-input" placeholder="TA的配对码" maxlength="20">
-<p class="auth-error" id="auth-error"></p>
-<button class="btn-primary btn-full" onclick="doJoin()">连接</button>
-<button class="btn-text" onclick="goNameStep()">← 返回</button>
+<input type="text" id="auth-name" class="auth-input" placeholder="你的昵称" maxlength="10">
+<button class="btn-primary btn-full" onclick="goEnterApp()">进入我的小窝</button>
 </div>
 </div>
 </div>
@@ -77,13 +44,18 @@
 </div>
 </div>
 
-<div class="card partner-mood-card">
+<div class="card partner-mood-card" id="partner-card">
 <div class="card-title" id="partner-mood-title">TA的心情</div>
 <div class="partner-mood-display"><span class="partner-mood-icon" id="partner-mood-icon">☀️</span><div><div class="partner-mood-label" id="partner-mood-label">晴朗</div><div class="partner-mood-updated" id="partner-mood-updated">尚未更新</div></div></div>
 </div>
 
-<div class="card history-card"><div class="card-title">💬 TA的历史消息</div><div id="history-list"></div></div>
-<div class="card partner-doodle-card"><div class="card-title">🎨 今日涂鸦</div><div id="partner-doodle-content"><span class="empty-hint">等TA画点什么吧</span></div></div>
+<div class="card" id="invite-card">
+<p style="text-align:center;color:var(--text-secondary);padding:16px 0">一个人也可以好好记录情绪 ☀️</p>
+<button class="btn-primary btn-full" onclick="openPairing()">💞 邀请TA加入</button>
+</div>
+
+<div class="card history-card" id="history-card" style="display:none"><div class="card-title">💬 TA的历史消息</div><div id="history-list"></div></div>
+<div class="card partner-doodle-card" id="doodle-card" style="display:none"><div class="card-title">🎨 今日涂鸦</div><div id="partner-doodle-content"><span class="empty-hint">等TA画点什么吧</span></div></div>
 </div>
 
 <div id="view-treehole" class="view">
@@ -114,10 +86,11 @@
 <header class="view-header"><h1>设置</h1></header>
 <div class="settings-list">
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">TA的称呼</div><div class="setting-desc" id="setting-partner-name"></div></div><button class="btn-text" onclick="editPartnerName()">修改</button></div>
-<div class="card setting-item"><div class="setting-info"><div class="setting-label">配对码</div><div class="setting-desc" id="setting-room-code"></div></div><button class="btn-text btn-danger" onclick="leaveAndReset()">退出房间</button></div>
+<div class="card setting-item" id="setting-pair"><div class="setting-info"><div class="setting-label">连接TA</div><div class="setting-desc">创建或加入房间</div></div><button class="btn-text" onclick="openPairing()">去连接</button></div>
+<div class="card setting-item" id="setting-room" style="display:none"><div class="setting-info"><div class="setting-label">房间号</div><div class="setting-desc" id="setting-room-code"></div></div><button class="btn-text btn-danger" onclick="leaveAndReset()">退出房间</button></div>
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">清除本地数据</div><div class="setting-desc">删除本地记录、涂鸦和设置</div></div><button class="btn-text btn-danger" onclick="clearAllData()">清除</button></div>
 </div>
-<p class="version-info">心情气象台 v2.0</p>
+<p class="version-info">心情气象台 v3.0</p>
 </div>
 
 <nav class="tab-bar">
@@ -157,7 +130,7 @@
 <button class="color-btn" data-color="#64B5F6" style="background:#64B5F6"></button>
 <button class="color-btn" data-color="#9575CD" style="background:#9575CD"></button>
 <button class="color-btn" data-color="#424242" style="background:#424242"></button>
-<button class="color-btn" data-color="#FAFAFA" style="background:#FAFAFA;border:1px solid #ddd"></button>
+<button class="color-btn" data-color="#FAFAF8" style="background:#FAFAF8;border:1px solid #ddd"></button>
 </div>
 <canvas id="doodle-canvas"></canvas>
 <div class="doodle-controls">
@@ -173,6 +146,33 @@
 <button class="bg-btn" data-bg="#E8E4E0" style="background:#E8E4E0" title="浅灰"></button>
 <button class="bg-btn" data-bg="#D5D0CA" style="background:#D5D0CA" title="深灰"></button>
 </div>
+</div>
+</div>
+
+<div id="pairing-overlay" class="overlay hidden" style="z-index:150">
+<div class="send-header"><button class="btn-icon" onclick="closePairing()">✕</button><span class="send-title">连接TA</span></div>
+<div id="pairing-options" style="padding:24px 20px;display:flex;flex-direction:column;gap:12px">
+<div class="send-option-card" onclick="showCreateRoom()"><span class="send-opt-icon">🏗️</span><span class="send-opt-label">创建房间</span></div>
+<div class="send-option-card" onclick="showJoinRoom()"><span class="send-opt-icon">🔑</span><span class="send-opt-label">加入房间</span></div>
+</div>
+<div id="pairing-create" class="hidden" style="padding:24px 20px">
+<input type="password" id="create-password" class="auth-input" placeholder="设置房间密码（4位以上）" maxlength="20">
+<p class="auth-error" id="create-error"></p>
+<button class="btn-primary btn-full" onclick="doCreateRoom()">创建</button>
+<div id="room-waiting" class="hidden" style="text-align:center;padding-top:20px">
+<div class="auth-waiting-icon">💫</div>
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">等待TA加入…</p>
+<div class="my-code-box"><span>房间号</span><strong id="room-code-display" style="cursor:pointer" title="点击复制" onclick="copyRoomCode()"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
+<button class="btn-text" onclick="cancelCreate()">取消</button>
+</div>
+<button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
+</div>
+<div id="pairing-join" class="hidden" style="padding:24px 20px">
+<input type="text" id="join-code" class="auth-input" placeholder="输入TA的房间号" maxlength="10" style="text-transform:uppercase">
+<input type="password" id="join-password" class="auth-input" placeholder="输入房间密码" maxlength="20">
+<p class="auth-error" id="join-error"></p>
+<button class="btn-primary btn-full" onclick="doJoinRoom()">加入</button>
+<button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
 </div>
 </div>
 
