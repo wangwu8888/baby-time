@@ -341,7 +341,13 @@ var seen = false;
   requestNotify: function() {
     var self = this;
     if (!('Notification' in window)) {
-      showToast('此浏览器不支持通知');
+      // Fallback: title flash + toast still work
+      showToast('当前浏览器不支持系统通知，但标题闪烁和横幅提醒仍然生效 📳');
+      self._notifyEnabled = false;
+      // Still mark as "enabled" for UI purposes (title flash is the fallback)
+      document.getElementById('setting-notify-desc').textContent = '标题闪烁提醒已就绪（系统通知不支持）';
+      var btn = document.getElementById('btn-notify');
+      if (btn) { btn.textContent = '已就绪'; btn.disabled = true; }
       return;
     }
     if (Notification.permission === 'granted') {

@@ -55,8 +55,8 @@ renderTimeline:function(){
   var groups=groupByDate(items);
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';
-  card.innerHTML='<div class="card-title">💬 对话</div>';
-  var scroll=document.createElement('div');scroll.style.cssText='max-height:300px;overflow-y:auto';
+  card.innerHTML='<div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>💬 对话</span><span style="font-size:11px;color:var(--accent-warm);cursor:pointer;font-weight:400" onclick="Weekly._openReport();event.stopPropagation()">📊 周报</span></div>';
+  var scroll=document.createElement('div');scroll.style.cssText='max-height:480px;overflow-y:auto;flex:1';
   scroll.id='timeline-scroll';
 
   var self=this;

@@ -62,17 +62,8 @@ var Weekly = {
   },
 
   renderEntry: function() {
-    if (!Sync.partnerId) return;
-    var pill = document.getElementById('weekly-pill');
-    if (!pill) return;
-    // Always show the small pill next to the room badge
-    pill.style.display = 'inline';
-    var today = new Date();
-    if (today.getDay() === 0) {
-      pill.textContent = '📊 周报';
-      pill.style.background = 'var(--accent-warm)';
-      pill.style.color = 'white';
-    }
+    // Weekly report button is now inside the timeline card title (weather.js)
+    // No separate UI needed — only show when paired via timeline rendering
   },
 
   _openReport: function() {
@@ -211,9 +202,6 @@ var Weekly = {
   },
 
   refresh: function() {
-    var pill = document.getElementById('weekly-pill');
-    if (!pill) return;
-    if (!Sync.partnerId) { pill.style.display = 'none'; return; }
-    this.renderEntry();
+    // Timeline re-renders with the weekly link via weather.js
   }
 };
