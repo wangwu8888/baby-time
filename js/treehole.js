@@ -1,4 +1,4 @@
-var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
+var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,_annOpen:true,_wishOpen:true,init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
 
 render:function(){this.renderDiary()},
 
@@ -77,19 +77,23 @@ renderMemorial:function(){
   var el=document.getElementById('memorial-section');if(!el)return;
   if(typeof Sync==='undefined'||!Sync.partnerId){el.innerHTML='';return}
   var html='<div class="card"><div class="card-title">💝 我们的纪念墙</div>';
-  html+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:14px">纪念日</span><button class="btn-text" onclick="TreeHole._addAnniversary()">+ 添加</button></div><div id="anniversary-list" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">';
+  html+='<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer" onclick="TreeHole._annOpen=!TreeHole._annOpen;TreeHole.renderMemorial()"><span style="font-weight:600;font-size:14px">'+(this._annOpen?'▼':'▶')+' 纪念日</span><button class="btn-text" onclick="event.stopPropagation();TreeHole._addAnniversary()">+ 添加</button></div>';
+  html+=this._annOpen?'<div id="anniversary-list" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">':'';
   var anns=JSON.parse(localStorage.getItem('anniversaries')||'[]');
   anns.forEach(function(a,i){
     var days=Math.floor((new Date()-new Date(a.date))/86400000);
     html+='<div style="min-width:120px;background:var(--bg);border-radius:12px;padding:12px;text-align:center;flex-shrink:0"><div style="font-size:24px">'+a.emoji+'</div><div style="font-size:13px;font-weight:500;margin:4px 0">'+escapeHtml(a.name)+'</div><div style="font-size:11px;color:var(--text-dim)">第 '+days+' 天</div><div style="font-size:10px;color:var(--text-dim)">'+a.date+'</div><button class="btn-text btn-danger" style="font-size:10px;margin-top:4px" onclick="TreeHole._delAnniversary('+i+')">删除</button></div>';
   });
-  html+='</div></div>';
-  html+='<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600;font-size:14px">愿望清单</span><button class="btn-text" onclick="TreeHole._addWish()">+ 添加</button></div><div id="wish-list">';
+  html+=this._annOpen?'</div>':'';
+  html+='</div>';
+  html+='<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer" onclick="TreeHole._wishOpen=!TreeHole._wishOpen;TreeHole.renderMemorial()"><span style="font-weight:600;font-size:14px">'+(this._wishOpen?'▼':'▶')+' 愿望清单</span><button class="btn-text" onclick="event.stopPropagation();TreeHole._addWish()">+ 添加</button></div>';
+  html+=this._wishOpen?'<div id="wish-list">':'';
   var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');
   wishes.forEach(function(w,i){
     html+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="cursor:pointer;font-size:18px" onclick="TreeHole._toggleWish('+i+')">'+(w.done?'☑':'☐')+'</span><span style="flex:1;font-size:14px;text-decoration:'+(w.done?'line-through':'none')+';color:'+(w.done?'var(--text-dim)':'var(--text)')+'">'+escapeHtml(w.text)+'</span><button class="btn-text btn-danger" style="font-size:10px" onclick="TreeHole._delWish('+i+')">删除</button></div>';
   });
-  html+='</div></div></div>';
+  html+=this._wishOpen?'</div>':'';
+  html+='</div></div>';
   el.innerHTML=html;
 },
 

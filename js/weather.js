@@ -81,8 +81,9 @@ renderTimeline:function(){
           var txt=it.text||'';if(txt.length>100)txt=txt.substring(0,100)+'…';
           bubble.textContent=txt;
         }
-        var time=document.createElement('div');time.style.cssText='font-size:10px;margin-top:2px;opacity:0.7';time.textContent=moodIcon+' '+formatTime(it.createdAt);
-        bubble.appendChild(time);row.appendChild(bubble);
+        bubble.addEventListener('click',function(){showToast(moodIcon+' '+formatFull(it.createdAt),2500)});
+        bubble.style.cursor='pointer';
+        row.appendChild(bubble);
       }
       scroll.appendChild(row);
     });

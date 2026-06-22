@@ -297,10 +297,10 @@ var seen = false;
           created_at: new Date().toISOString()
         };
         SUPABASE.post('messages', msg, function(result) {
-          // Also add locally so timeline shows both sides
+          // Also add locally so timeline shows both sides (use plaintext for display)
           self.partnerMessages.push({
             id: result && result.length ? result[0].id : null,
-            sender: 'me', text: encText, doodleDataUrl: dd || null,
+            sender: 'me', text: t || '', doodleDataUrl: dd || null,
             mood: mo || 'sunny', type: dd ? 'doodle' : 'text', createdAt: msg.created_at
           });
           if (self.partnerMessages.length > 100) self.partnerMessages.length = 100;
