@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#FAFAF8">
-<title>心情气象台</title>
+<title>蹇冩儏姘旇薄鍙?/title>
 <script>console.log('v3 loaded');document.body.style.background='#FFF7ED';</script>
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="css/style.css">
@@ -18,28 +18,28 @@
 <div id="app">
 
 <div id="view-weather" class="view active">
-<header class="view-header"><h1>心情气象台</h1><span class="room-badge" id="room-badge"></span></header>
+<header class="view-header"><h1>蹇冩儏姘旇薄鍙?/h1><span class="room-badge" id="room-badge"></span></header>
 
 <div id="status-area"></div>
 
 <div class="card my-mood-card" id="my-mood-card">
 <div class="mood3d-wrapper">
-<div class="mood3d-button"><span class="mood3d-shine"></span><span class="mood3d-icon" id="mood3d-icon">☀️</span><span class="mood3d-label" id="mood3d-label">晴朗</span></div>
+<div class="mood3d-button"><span class="mood3d-shine"></span><span class="mood3d-icon" id="mood3d-icon">鈽€锔?/span><span class="mood3d-label" id="mood3d-label">鏅存湕</span></div>
 <div class="mood3d-shadow"></div>
 </div>
 <div class="mood3d-grid">
-<div class="mood3d-opt" data-mood="sunny" onclick="pickMood('sunny')"><span>☀️</span><span>晴朗</span></div>
-<div class="mood3d-opt" data-mood="cloudy" onclick="pickMood('cloudy')"><span>☁️</span><span>多云</span></div>
-<div class="mood3d-opt" data-mood="rainy" onclick="pickMood('rainy')"><span>🌧️</span><span>雨天</span></div>
-<div class="mood3d-opt" data-mood="storm" onclick="pickMood('storm')"><span>⛈️</span><span>雷暴</span></div>
-<div class="mood3d-opt" data-mood="love" onclick="pickMood('love')"><span>❤️</span><span>爱心</span></div>
-<div class="mood3d-opt" data-mood="dnd" onclick="pickMood('dnd')"><span>🔕</span><span>勿扰</span></div>
+<div class="mood3d-opt" data-mood="sunny" onclick="pickMood('sunny')"><span>鈽€锔?/span><span>鏅存湕</span></div>
+<div class="mood3d-opt" data-mood="cloudy" onclick="pickMood('cloudy')"><span>鈽侊笍</span><span>澶氫簯</span></div>
+<div class="mood3d-opt" data-mood="rainy" onclick="pickMood('rainy')"><span>馃導锔?/span><span>闆ㄥぉ</span></div>
+<div class="mood3d-opt" data-mood="storm" onclick="pickMood('storm')"><span>鉀堬笍</span><span>闆锋毚</span></div>
+<div class="mood3d-opt" data-mood="love" onclick="pickMood('love')"><span>鉂わ笍</span><span>鐖卞績</span></div>
+<div class="mood3d-opt" data-mood="dnd" onclick="pickMood('dnd')"><span>馃敃</span><span>鍕挎壈</span></div>
 </div>
 </div>
 
 <div class="card partner-mood-card" id="partner-card" style="display:none">
-<div class="card-title" id="partner-mood-title">TA的心情</div>
-<div class="partner-mood-display"><span class="partner-mood-icon" id="partner-mood-icon">☀️</span><div><div class="partner-mood-label" id="partner-mood-label">晴朗</div><div class="partner-mood-updated" id="partner-mood-updated">尚未更新</div></div></div>
+<div class="card-title" id="partner-mood-title">TA鐨勫績鎯?/div>
+<div class="partner-mood-display"><span class="partner-mood-icon" id="partner-mood-icon">鈽€锔?/span><div><div class="partner-mood-label" id="partner-mood-label">鏅存湕</div><div class="partner-mood-updated" id="partner-mood-updated">灏氭湭鏇存柊</div></div></div>
 </div>
 
 <div class="card" id="invite-card" style="display:none"></div>
@@ -49,51 +49,51 @@
 </div>
 
 <div id="view-treehole" class="view">
-<header class="view-header"><h1>树洞</h1><span class="header-subtitle">你的私密空间</span></header>
+<header class="view-header"><h1>鏍戞礊</h1><span class="header-subtitle">浣犵殑绉佸瘑绌洪棿</span></header>
 <div id="diary-section"></div>
 <div id="memorial-section"></div>
 </div>
 
 <div id="view-settings" class="view">
-<header class="view-header"><h1>设置</h1></header>
+<header class="view-header"><h1>璁剧疆</h1></header>
 <div class="settings-list">
-<div class="card setting-item"><div class="setting-info"><div class="setting-label">TA的称呼</div><div class="setting-desc" id="setting-partner-name"></div></div><button class="btn-text" onclick="editPartnerName()">修改</button></div>
-<div class="card setting-item" id="setting-pair"><div class="setting-info"><div class="setting-label">连接TA</div><div class="setting-desc">创建或加入房间</div></div><button class="btn-text" onclick="openPairing()">去连接</button></div>
-<div class="card setting-item" id="setting-room" style="display:none"><div class="setting-info"><div class="setting-label">房间号</div><div class="setting-desc" id="setting-room-code"></div></div><button class="btn-text btn-danger" onclick="leaveAndReset()">退出房间</button></div>
-<div class="card setting-item"><div class="setting-info"><div class="setting-label">清除本地数据</div><div class="setting-desc">删除本地记录、涂鸦和设置</div></div><button class="btn-text btn-danger" onclick="clearAllData()">清除</button></div>
+<div class="card setting-item"><div class="setting-info"><div class="setting-label">TA鐨勭О鍛?/div><div class="setting-desc" id="setting-partner-name"></div></div><button class="btn-text" onclick="editPartnerName()">淇敼</button></div>
+<div class="card setting-item" id="setting-pair"><div class="setting-info"><div class="setting-label">杩炴帴TA</div><div class="setting-desc">鍒涘缓鎴栧姞鍏ユ埧闂?/div></div><button class="btn-text" onclick="openPairing()">鍘昏繛鎺?/button></div>
+<div class="card setting-item" id="setting-room" style="display:none"><div class="setting-info"><div class="setting-label">鎴块棿鍙?/div><div class="setting-desc" id="setting-room-code"></div></div><button class="btn-text btn-danger" onclick="leaveAndReset()">閫€鍑烘埧闂?/button></div>
+<div class="card setting-item"><div class="setting-info"><div class="setting-label">娓呴櫎鏈湴鏁版嵁</div><div class="setting-desc">鍒犻櫎鏈湴璁板綍銆佹秱楦﹀拰璁剧疆</div></div><button class="btn-text btn-danger" onclick="clearAllData()">娓呴櫎</button></div>
 </div>
-<p class="version-info">心情气象台 v3.0</p>
+<p class="version-info">蹇冩儏姘旇薄鍙?v3.0</p>
 </div>
 
 <nav class="tab-bar">
-<button class="tab-btn active" data-view="weather"><span class="tab-icon">🏠</span><span class="tab-label">气象台</span></button>
-<button class="tab-btn" data-view="treehole"><span class="tab-icon">🌳</span><span class="tab-label">树洞</span></button>
-<button class="tab-btn" data-view="settings"><span class="tab-icon">⚙️</span><span class="tab-label">设置</span></button>
+<button class="tab-btn active" data-view="weather"><span class="tab-icon">馃彔</span><span class="tab-label">姘旇薄鍙?/span></button>
+<button class="tab-btn" data-view="treehole"><span class="tab-icon">馃尦</span><span class="tab-label">鏍戞礊</span></button>
+<button class="tab-btn" data-view="settings"><span class="tab-icon">鈿欙笍</span><span class="tab-label">璁剧疆</span></button>
 </nav>
 </div>
 
 <div id="send-overlay" class="overlay hidden">
-<div class="send-header"><button class="btn-icon" onclick="Send.close()">✕</button><span class="send-title">投递给TA</span></div>
+<div class="send-header"><button class="btn-icon" onclick="Send.close()">鉁?/button><span class="send-title">鎶曢€掔粰TA</span></div>
 <div class="send-options">
-<div class="send-option-card" onclick="Send.openText()"><span class="send-opt-icon">✏️</span><span class="send-opt-label">写文字</span></div>
-<div class="send-option-card" onclick="Send.openDoodle()"><span class="send-opt-icon">🎨</span><span class="send-opt-label">画涂鸦</span></div>
+<div class="send-option-card" onclick="Send.openText()"><span class="send-opt-icon">鉁忥笍</span><span class="send-opt-label">鍐欐枃瀛?/span></div>
+<div class="send-option-card" onclick="Send.openDoodle()"><span class="send-opt-icon">馃帹</span><span class="send-opt-label">鐢绘秱楦?/span></div>
 </div>
 <div id="send-text-panel" class="hidden">
-<textarea id="send-text-input" class="send-textarea" placeholder="想说什么..." rows="4"></textarea>
-<div class="send-mood-row"><span class="send-mood-label">此刻心情：</span><div class="send-mood-select" id="send-mood-select">
-<div class="mood-stamp-btn selected" data-mood="sunny" onclick="pickSendMood('sunny')">☀️</div>
-<div class="mood-stamp-btn" data-mood="cloudy" onclick="pickSendMood('cloudy')">☁️</div>
-<div class="mood-stamp-btn" data-mood="rainy" onclick="pickSendMood('rainy')">🌧️</div>
-<div class="mood-stamp-btn" data-mood="storm" onclick="pickSendMood('storm')">⛈️</div>
-<div class="mood-stamp-btn" data-mood="love" onclick="pickSendMood('love')">❤️</div>
-<div class="mood-stamp-btn" data-mood="dnd" onclick="pickSendMood('dnd')">🔕</div>
+<textarea id="send-text-input" class="send-textarea" placeholder="鎯宠浠€涔?.." rows="4"></textarea>
+<div class="send-mood-row"><span class="send-mood-label">姝ゅ埢蹇冩儏锛?/span><div class="send-mood-select" id="send-mood-select">
+<div class="mood-stamp-btn selected" data-mood="sunny" onclick="pickSendMood('sunny')">鈽€锔?/div>
+<div class="mood-stamp-btn" data-mood="cloudy" onclick="pickSendMood('cloudy')">鈽侊笍</div>
+<div class="mood-stamp-btn" data-mood="rainy" onclick="pickSendMood('rainy')">馃導锔?/div>
+<div class="mood-stamp-btn" data-mood="storm" onclick="pickSendMood('storm')">鉀堬笍</div>
+<div class="mood-stamp-btn" data-mood="love" onclick="pickSendMood('love')">鉂わ笍</div>
+<div class="mood-stamp-btn" data-mood="dnd" onclick="pickSendMood('dnd')">馃敃</div>
 </div></div>
-<div class="send-actions"><label class="send-save-label"><input type="checkbox" id="send-save-treehole"> 同时存入树洞</label><button class="btn-primary" onclick="Send.doSendText()">发送</button></div>
+<div class="send-actions"><label class="send-save-label"><input type="checkbox" id="send-save-treehole"> 鍚屾椂瀛樺叆鏍戞礊</label><button class="btn-primary" onclick="Send.doSendText()">鍙戦€?/button></div>
 </div>
 </div>
 
 <div id="doodle-overlay" class="overlay hidden">
-<div class="doodle-toolbar"><button class="btn-icon" onclick="Doodle.close(false)">✕</button><span class="doodle-title">情绪涂鸦</span><button class="btn-primary" style="display:none" id="btn-doodle-send" onclick="Doodle.close(true)">发送给TA</button><button class="btn-icon" id="btn-doodle-save" onclick="Doodle.close(true)">✓</button></div>
+<div class="doodle-toolbar"><button class="btn-icon" onclick="Doodle.close(false)">鉁?/button><span class="doodle-title">鎯呯华娑傞甫</span><button class="btn-primary" style="display:none" id="btn-doodle-send" onclick="Doodle.close(true)">鍙戦€佺粰TA</button><button class="btn-icon" id="btn-doodle-save" onclick="Doodle.close(true)">鉁?/button></div>
 <div class="doodle-colors" id="doodle-colors">
 <button class="color-btn active" data-color="#E57373" style="background:#E57373"></button>
 <button class="color-btn" data-color="#FFB74D" style="background:#FFB74D"></button>
@@ -111,60 +111,61 @@
 <button class="size-btn active" data-size="6"><span class="brush-dot" style="width:8px;height:8px"></span></button>
 <button class="size-btn" data-size="12"><span class="brush-dot" style="width:14px;height:14px"></span></button>
 </div>
-<button class="btn-secondary" id="btn-eraser">🧹 橡皮</button>
-<button class="btn-secondary" id="btn-clear-canvas">🗑️ 清空</button>
+<button class="btn-secondary" id="btn-eraser">馃Ч 姗＄毊</button>
+<button class="btn-secondary" id="btn-clear-canvas">馃棏锔?娓呯┖</button>
 <div class="bg-colors" id="bg-colors">
-<button class="bg-btn active" data-bg="#F5F0EB" style="background:#F5F0EB" title="米黄"></button>
-<button class="bg-btn" data-bg="#E8E4E0" style="background:#E8E4E0" title="浅灰"></button>
-<button class="bg-btn" data-bg="#D5D0CA" style="background:#D5D0CA" title="深灰"></button>
+<button class="bg-btn active" data-bg="#F5F0EB" style="background:#F5F0EB" title="绫抽粍"></button>
+<button class="bg-btn" data-bg="#E8E4E0" style="background:#E8E4E0" title="娴呯伆"></button>
+<button class="bg-btn" data-bg="#D5D0CA" style="background:#D5D0CA" title="娣辩伆"></button>
 </div>
 </div>
 </div>
 
 <div id="pairing-overlay" class="overlay hidden" style="z-index:150">
-<div class="send-header"><button class="btn-icon" onclick="closePairing()">✕</button><span class="send-title">连接TA</span></div>
+<div class="send-header"><button class="btn-icon" onclick="closePairing()">鉁?/button><span class="send-title">杩炴帴TA</span></div>
 <div id="pairing-options" style="padding:24px 20px;display:flex;flex-direction:column;gap:12px">
-<div class="send-option-card" onclick="showCreateRoom()"><span class="send-opt-icon">🏗️</span><span class="send-opt-label">创建房间</span></div>
-<div class="send-option-card" onclick="showJoinRoom()"><span class="send-opt-icon">🔑</span><span class="send-opt-label">加入房间</span></div>
+<div class="send-option-card" onclick="showCreateRoom()"><span class="send-opt-icon">馃彈锔?/span><span class="send-opt-label">鍒涘缓鎴块棿</span></div>
+<div class="send-option-card" onclick="showJoinRoom()"><span class="send-opt-icon">馃攽</span><span class="send-opt-label">鍔犲叆鎴块棿</span></div>
 </div>
 <div id="pairing-create" class="hidden" style="padding:24px 20px">
-<input type="password" id="create-password" class="auth-input" placeholder="设置房间密码（4位以上）" maxlength="20">
+<input type="password" id="create-password" class="auth-input" placeholder="璁剧疆鎴块棿瀵嗙爜锛?浣嶄互涓婏級" maxlength="20">
 <p class="auth-error" id="create-error"></p>
-<button class="btn-primary btn-full" onclick="doCreateRoom()">创建</button>
+<button class="btn-primary btn-full" onclick="doCreateRoom()">鍒涘缓</button>
 <div id="room-waiting" class="hidden" style="text-align:center;padding-top:20px">
-<div class="auth-waiting-icon">💫</div>
-<p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">等待TA加入…</p>
-<div class="my-code-box"><span>房间号</span><strong id="room-code-display" style="cursor:pointer" title="点击复制" onclick="copyRoomCode()"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
-<p style="font-size:12px;color:var(--text-secondary)">把房间号和密码发给TA</p>
-<button class="btn-text" onclick="cancelCreate()">取消</button>
+<div class="auth-waiting-icon">馃挮</div>
+<p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">绛夊緟TA鍔犲叆鈥?/p>
+<div class="my-code-box"><span>鎴块棿鍙?/span><strong id="room-code-display" style="cursor:pointer" title="鐐瑰嚮澶嶅埗" onclick="copyRoomCode()"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">宸插鍒讹紒</div></div>
+<p style="font-size:12px;color:var(--text-secondary)">鎶婃埧闂村彿鍜屽瘑鐮佸彂缁橳A</p>
+<button class="btn-text" onclick="cancelCreate()">鍙栨秷</button>
 </div>
-<button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
+<button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">鈫?杩斿洖</button>
 </div>
 <div id="pairing-join" class="hidden" style="padding:24px 20px">
-<input type="text" id="join-code" class="auth-input" placeholder="输入房间号" maxlength="10" style="text-transform:uppercase">
-<input type="password" id="join-password" class="auth-input" placeholder="输入房间密码" maxlength="20">
+<input type="text" id="join-code" class="auth-input" placeholder="杈撳叆鎴块棿鍙? maxlength="10" style="text-transform:uppercase">
+<input type="password" id="join-password" class="auth-input" placeholder="杈撳叆鎴块棿瀵嗙爜" maxlength="20">
 <p class="auth-error" id="join-error"></p>
-<button class="btn-primary btn-full" onclick="doJoinRoom()">加入</button>
-<button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
+<button class="btn-primary btn-full" onclick="doJoinRoom()">鍔犲叆</button>
+<button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">鈫?杩斿洖</button>
 </div>
 </div>
 
 <div id="modal-shared-entry" class="modal hidden">
 <div class="modal-backdrop"></div>
-<div class="modal-card"><h3 id="shared-entry-modal-title"></h3><div class="shared-entry-mood" id="shared-entry-modal-mood"></div><p class="shared-entry-text" id="shared-entry-modal-text"></p><img class="shared-entry-doodle" id="shared-entry-modal-doodle" style="display:none" alt="涂鸦"><button class="btn-secondary btn-full" onclick="document.getElementById('modal-shared-entry').classList.add('hidden')">关闭</button></div>
+<div class="modal-card"><h3 id="shared-entry-modal-title"></h3><div class="shared-entry-mood" id="shared-entry-modal-mood"></div><p class="shared-entry-text" id="shared-entry-modal-text"></p><img class="shared-entry-doodle" id="shared-entry-modal-doodle" style="display:none" alt="娑傞甫"><button class="btn-secondary btn-full" onclick="document.getElementById('modal-shared-entry').classList.add('hidden')">鍏抽棴</button></div>
 </div>
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="js/utils.js?v=12"></script>
-<script src="js/storage.js?v=12"></script>
-<script src="js/supabase.js?v=12"></script>
-<script src="js/crypto.js?v=12"></script>
-<script src="js/sync.js?v=12"></script>
-<script src="js/weather.js?v=12"></script>
-<script src="js/treehole.js?v=12"></script>
-<script src="js/doodle.js?v=12"></script>
-<script src="js/send.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/utils.js?v=13"></script>
+<script src="js/storage.js?v=13"></script>
+<script src="js/supabase.js?v=13"></script>
+<script src="js/crypto.js?v=13"></script>
+<script src="js/sync.js?v=13"></script>
+<script src="js/weather.js?v=13"></script>
+<script src="js/treehole.js?v=13"></script>
+<script src="js/doodle.js?v=13"></script>
+<script src="js/send.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
 </body>
 </html>
+
