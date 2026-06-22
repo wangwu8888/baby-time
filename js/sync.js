@@ -152,10 +152,14 @@ var Sync = {
     localStorage.setItem('sync_roomId', this.roomId);
     localStorage.setItem('sync_userId', this.userId);
     localStorage.setItem('user_id', this.userId);
-    // Encryption temporarily disabled for debugging
-    // if (typeof Crypto !== 'undefined') Crypto.init(code);
-    this._startPolling();
-    if (this.onChange) this.onChange('ready');
+    var self = this;
+    // Wait for encryption key to be ready before polling
+    function doStart() { self._startPolling(); if (self.onChange) self.onChange('ready'); }
+    if (typeof Crypto !== 'undefined') {
+      Crypto.init(code).then(doStart).catch(doStart);
+    } else {
+      doStart();
+    }
   },
 
   // ========== Reconnect ==========
@@ -172,20 +176,26 @@ var Sync = {
     this.partnerId = null; // Will be discovered by _loadPartner
     this.partnerName = localStorage.getItem('sync_partnerName') || 'TA';
     this.onChange = cb;
-    // Encryption temporarily disabled for debugging
-    // if (typeof Crypto !== 'undefined') Crypto.init(code);
 
     var self = this;
-    SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
-      if (!rows || !rows.length) {
-        SUPABASE.post('users', { user_id: uid, nickname: self.partnerName || '我' }, function() {});
-      }
-      if (self.roomId) {
-        self._loadPartner(function() { self._startPolling(); });
-      } else {
-        self._startPolling();
-      }
-    });
+    // Ensure encryption key is ready before starting poll
+    function doConnect() {
+      SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
+        if (!rows || !rows.length) {
+          SUPABASE.post('users', { user_id: uid, nickname: self.partnerName || '我' }, function() {});
+        }
+        if (self.roomId) {
+          self._loadPartner(function() { self._startPolling(); });
+        } else {
+          self._startPolling();
+        }
+      });
+    }
+    if (typeof Crypto !== 'undefined') {
+      Crypto.init(code).then(doConnect).catch(doConnect);
+    } else {
+      doConnect();
+    }
     return true;
   },
 
