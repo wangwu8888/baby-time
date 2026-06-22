@@ -75,7 +75,7 @@ renderTimeline:function(){
         var isPartner=it.sender!=='me';
         row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');
         var bubble=document.createElement('div');
-        bubble.style.cssText='display:inline-block;max-width:80%;background:'+(isPartner?'var(--card)':'var(--primary)')+';color:'+(isPartner?'var(--text)':'white')+';padding:8px 12px;border-radius:12px;font-size:13px;word-break:break-word;box-shadow:'+(isPartner?'var(--shadow)':'none');
+        bubble.style.cssText='display:inline-block;max-width:72%;background:'+(isPartner?'var(--card)':'var(--primary)')+';color:'+(isPartner?'var(--text)':'white')+';padding:8px 12px;border-radius:12px;font-size:13px;word-break:break-word;box-shadow:'+(isPartner?'var(--shadow)':'none');
         if(it.type==='doodle'){
           var img=document.createElement('img');img.src=it.doodleDataUrl;img.style.cssText='max-width:120px;border-radius:8px;cursor:pointer';
           img.addEventListener('click',function(){self._showFull(it.doodleDataUrl)});
