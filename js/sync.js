@@ -404,7 +404,10 @@ var seen = false;
     localStorage.removeItem('sync_roomCode');
     localStorage.removeItem('sync_roomId');
     localStorage.removeItem('sync_partnerId');
+    localStorage.removeItem('sync_partnerName');
+    localStorage.removeItem('sync_partnerName_custom');
     localStorage.removeItem('room_password');
     this.roomCode = null; this.roomId = null; this.partnerId = null; this.partnerName = null;
+    this.partnerMood = null; this.partnerMessages = []; this.myMood = null;
   }
 };
