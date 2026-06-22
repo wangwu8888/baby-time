@@ -276,12 +276,48 @@ var seen = false;
             self.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
             if (self.partnerMessages.length > 100) self.partnerMessages.length = 100;
             changed = true;
+            // Flash title for new partner messages when not on weather view
+            var hasNewFromPartner = false;
+            for (var k = self.partnerMessages.length - nc; k < self.partnerMessages.length; k++) {
+              if (k >= 0 && self.partnerMessages[k] && self.partnerMessages[k].sender === 'partner') {
+                hasNewFromPartner = true; break;
+              }
+            }
+            if (hasNewFromPartner) self._flashTitle();
           }
         }
         // Wait for all decryptions to finish before notifying UI
         Promise.all(decryptPromises).then(function() { check(); });
       });
     } else { check(); }
+  },
+
+  // ========== Title Flash ==========
+  _flashTimer: null,
+  _originalTitle: null,
+  _flashTitle: function() {
+    // Don't flash if user is already looking at the weather view
+    if (typeof App !== 'undefined' && App.currentView === 'weather') return;
+    if (this._flashTimer) return; // Already flashing
+    var self = this;
+    this._originalTitle = document.title;
+    var on = true;
+    this._flashTimer = setInterval(function() {
+      document.title = on ? '💬 新消息' : self._originalTitle;
+      on = !on;
+    }, 1200);
+    // Auto-stop after 60 seconds
+    setTimeout(function() { self._stopFlash(); }, 60000);
+  },
+  _stopFlash: function() {
+    if (this._flashTimer) {
+      clearInterval(this._flashTimer);
+      this._flashTimer = null;
+    }
+    if (this._originalTitle) {
+      document.title = this._originalTitle;
+      this._originalTitle = null;
+    }
   },
 
   // ========== Actions ==========
