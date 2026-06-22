@@ -14,9 +14,58 @@ var MOOD_CONFIG={sunny:{icon:'☀️',label:'晴朗'},cloudy:{icon:'☁️',labe
 // Global helpers
 function getMyCode(){var c=localStorage.getItem('my_pair_code');if(!c){c='';var ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';for(var i=0;i<6;i++)c+=ch[Math.floor(Math.random()*ch.length)];localStorage.setItem('my_pair_code',c)}return c}
 function copyMyCode(){var c=getMyCode();if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var el=document.getElementById('copy-hint');if(el){el.style.display='block';setTimeout(function(){el.style.display='none'},1500)}}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}}
-function goRoomStep(){var i=document.getElementById('auth-name');if(!i)return;var n=i.value.trim();if(!n){showToast('请输入TA的昵称',1500);return}localStorage.setItem('sync_partnerName',n);document.getElementById('auth-step-name').classList.add('hidden');document.getElementById('auth-step-room').classList.remove('hidden');document.getElementById('my-pair-code').textContent=getMyCode();document.getElementById('auth-error').textContent=''}
+function goRoomStep(){var i=document.getElementById('auth-name');if(!i)return;var n=i.value.trim();if(!n){showToast('请输入TA的昵称',1500);return}localStorage.setItem('sync_partnerName',n);document.getElementById('auth-step-name').classList.add('hidden');document.getElementById('auth-step-room').classList.remove('hidden');document.getElementById('room-choice').classList.remove('hidden');document.getElementById('room-create').classList.add('hidden');document.getElementById('room-join').classList.add('hidden')}
 function goNameStep(){document.getElementById('screen-auth').style.display='flex';document.getElementById('auth-step-name').classList.remove('hidden');document.getElementById('auth-step-room').classList.add('hidden')}
-function doJoin(){var i=document.getElementById('auth-code');if(!i)return;var c=i.value.trim();if(!c){document.getElementById('auth-error').textContent='请输入TA的配对码';return}if(c===getMyCode()){document.getElementById('auth-error').textContent='不能输入自己的配对码';return}document.getElementById('auth-error').textContent='';document.getElementById('auth-step-room').classList.add('hidden');document.getElementById('screen-auth').style.display='none';document.getElementById('app').classList.remove('hidden');var codes=[getMyCode(),c].sort();var room=codes[0]+'-'+codes[1];localStorage.setItem('sync_roomCode',room);if(typeof Sync!=='undefined')Sync.joinRoom(room,getMyCode(),c);var t=0;function chk(){t++;if(typeof Sync!=='undefined'&&Sync.myId){if(typeof App!=='undefined'&&App.showApp)App.showApp();return}if(t<40)setTimeout(chk,500);else{if(typeof App!=='undefined'&&App.showApp)App.showApp()}}setTimeout(chk,1000)}
+function goRoomStepBack(){document.getElementById('room-choice').classList.remove('hidden');document.getElementById('room-create').classList.add('hidden');document.getElementById('room-join').classList.add('hidden')}
+function showCreateRoom(){document.getElementById('room-choice').classList.add('hidden');document.getElementById('room-create').classList.remove('hidden');document.getElementById('room-waiting').classList.add('hidden');document.getElementById('create-password').value='';document.getElementById('create-error').textContent=''}
+function showJoinRoom(){document.getElementById('room-choice').classList.add('hidden');document.getElementById('room-join').classList.remove('hidden');document.getElementById('join-code').value='';document.getElementById('join-password').value='';document.getElementById('join-error').textContent=''}
+function cancelCreate(){if(typeof Sync!=='undefined'&&Sync.roomCode)Sync.leave();goRoomStepBack()}
+function copyRoomCode(){var c=document.getElementById('room-code-display').textContent;if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var e=document.getElementById('copy-hint');if(e){e.style.display='block';setTimeout(function(){e.style.display='none'},1500)}}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}}
+
+var _waitingTimer = null;
+function doCreateRoom(){
+  var pwd=document.getElementById('create-password').value.trim();
+  if(pwd.length<4){document.getElementById('create-error').textContent='密码至少4位';return}
+  document.getElementById('create-error').textContent='';
+  document.getElementById('room-waiting').classList.remove('hidden');
+  if(typeof Sync!=='undefined') Sync.createRoom(pwd, function(result){
+    if(result.error){document.getElementById('create-error').textContent=result.error;document.getElementById('room-waiting').classList.add('hidden');return}
+    document.getElementById('room-code-display').textContent=result.roomCode;
+    // Poll for partner
+    var tries=0;
+    function waitPartner(){
+      tries++;
+      if(tries>120){cancelCreate();return}
+      if(typeof Sync!=='undefined'&&Sync.partnerId){enterApp();return}
+      _waitingTimer=setTimeout(waitPartner,1500);
+    }
+    _waitingTimer=setTimeout(waitPartner,1500);
+  });
+}
+
+function doJoinRoom(){
+  var code=document.getElementById('join-code').value.trim().toUpperCase();
+  var pwd=document.getElementById('join-password').value.trim();
+  if(!code){document.getElementById('join-error').textContent='请输入房间号';return}
+  if(!pwd||pwd.length<4){document.getElementById('join-error').textContent='密码至少4位';return}
+  document.getElementById('join-error').textContent='';
+  if(typeof Sync!=='undefined') Sync.joinRoom(code, pwd, function(result){
+    if(result.error){document.getElementById('join-error').textContent=result.error;return}
+    document.getElementById('join-error').textContent='';
+    enterApp();
+  });
+}
+
+function enterApp(){
+  if(_waitingTimer){clearTimeout(_waitingTimer);_waitingTimer=null}
+  document.getElementById('auth-step-room').classList.add('hidden');
+  document.getElementById('screen-auth').style.display='none';
+  document.getElementById('app').classList.remove('hidden');
+  if(typeof App!=='undefined'&&App.showApp) App.showApp();
+}
+
+// Keep old doJoin for backward compat (not used in new flow)
+function doJoin(){doJoinRoom()}
 function pickMood(s){var c=MOOD_CONFIG[s]||MOOD_CONFIG.sunny;var d={status:s,updatedAt:new Date().toISOString(),message:''};try{localStorage.setItem('moodState_me',JSON.stringify(d))}catch(e){}if(typeof Sync!=='undefined'&&Sync.roomCode)Sync.updateMood(s);var ie=document.getElementById('mood3d-icon');var le=document.getElementById('mood3d-label');if(ie)ie.textContent=c.icon;if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){if(os[i].getAttribute('data-mood')===s)os[i].classList.add('selected');else os[i].classList.remove('selected')}if(navigator.vibrate)navigator.vibrate(8);showToast('已更新 '+c.icon,1500)}
 function pickSendMood(m){if(typeof Send!=='undefined')Send.sendMood=m;var bs=document.querySelectorAll('#send-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){if(bs[i].getAttribute('data-mood')===m)bs[i].classList.add('selected');else bs[i].classList.remove('selected')}}
 function editPartnerName(){var c=localStorage.getItem('sync_partnerName')||'TA';var n=prompt('输入TA的称呼：',c);if(n&&n.trim()){localStorage.setItem('sync_partnerName',n.trim());try{var s=getSettings('ta');s.profileName=n.trim();saveSettings(s,'ta')}catch(e){}if(typeof Weather!=='undefined')Weather.refresh();if(typeof TreeHole!=='undefined')TreeHole.refresh()}}

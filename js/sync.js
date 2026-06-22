@@ -35,33 +35,57 @@ var Sync = {
 
   // ========== Room / Pairing ==========
 
-  joinRoom: function(code, myCode, partnerCode) {
+  // Create a new room
+  createRoom: function(password, cb) {
     var self = this;
+    this._initUser(function() {
+      var code = '';
+      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      var pwdHash = self._hashCode(code + password);
+      self.roomCode = code;
+      SUPABASE.post('rooms', {
+        room_code: code, password_hash: pwdHash,
+        creator_user_id: self.userId, member_count: 1
+      }, function(newRoom) {
+        if (newRoom && newRoom.length) {
+          self.roomId = newRoom[0].id;
+          SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
+            self._finish(code);
+            self._startPolling();
+            cb({ roomCode: code });
+          });
+        } else {
+          cb({ error: '创建失败' });
+        }
+      });
+    });
+  },
+
+  // Join existing room
+  joinRoom: function(code, password, cb) {
+    var self = this;
+    code = code.toUpperCase();
     this.roomCode = code;
     this._initUser(function() {
       SUPABASE.get('rooms', 'room_code=eq.' + encodeURIComponent(code) + '&limit=1', function(rows) {
-        if (rows && rows.length) {
-          var room = rows[0];
-          self.roomId = room.id;
-          // Join as member
-          SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
-            SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 2 }, function() {});
-            self._loadPartner(function() { self._finish(code); });
-          });
-        } else {
-          var pwdHash = self._hashCode(code);
-          SUPABASE.post('rooms', {
-            room_code: code, password_hash: pwdHash,
-            creator_user_id: self.userId, member_count: 1
-          }, function(newRoom) {
-            if (newRoom && newRoom.length) {
-              self.roomId = newRoom[0].id;
-              SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
-                self._finish(code);
-              });
-            } else { self._finish(code); }
-          });
-        }
+        if (!rows || !rows.length) { cb({ error: '房间不存在' }); return; }
+        var room = rows[0];
+        var pwdHash = self._hashCode(code + password);
+        if (room.password_hash !== pwdHash) { cb({ error: '密码错误' }); return; }
+        self.roomId = room.id;
+        // Check if already a member
+        SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(self.userId), function(members) {
+          if (members && members.length) {
+            // Already joined, just reconnect
+            self._loadPartner(function() { self._finish(code); cb({ success: true }); });
+          } else {
+            SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
+              SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 2 }, function() {});
+              self._loadPartner(function() { self._finish(code); cb({ success: true }); });
+            });
+          }
+        });
       });
     });
   },
