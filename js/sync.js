@@ -55,19 +55,32 @@ var Sync = {
       var code = self._getInviteCode();
       var pwdHash = self._hashCode(code + password);
       self.roomCode = code;
-      SUPABASE.post('rooms', {
-        room_code: code, password_hash: pwdHash,
-        creator_user_id: self.userId, member_count: 1
-      }, function(newRoom) {
-        if (newRoom && newRoom.length) {
-          self.roomId = newRoom[0].id;
-          SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
-            self._finish(code);
-            self._startPolling();
-            cb({ roomCode: code });
+      // First, clean up any old room with same code
+      SUPABASE.get('rooms', 'room_code=eq.' + encodeURIComponent(code) + '&limit=1', function(rows) {
+        function makeRoom() {
+          SUPABASE.post('rooms', {
+            room_code: code, password_hash: pwdHash,
+            creator_user_id: self.userId, member_count: 1
+          }, function(newRoom) {
+            if (newRoom && newRoom.length) {
+              self.roomId = newRoom[0].id;
+              SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
+                self._finish(code);
+                self._startPolling();
+                cb({ roomCode: code });
+              });
+            } else {
+              cb({ error: '创建失败' });
+            }
           });
+        }
+        if (rows && rows.length) {
+          // Delete old room first
+          var oldId = rows[0].id;
+          SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(oldId), function() {});
+          SUPABASE.delete('rooms', 'id=eq.' + oldId, function() { makeRoom(); });
         } else {
-          cb({ error: '创建失败' });
+          makeRoom();
         }
       });
     });
@@ -294,13 +307,25 @@ var Sync = {
 
   leave: function() {
     if (this.timer) clearInterval(this.timer);
-    if (this.roomId && this.userId) {
-      SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&user_id=eq.' + encodeURIComponent(this.userId), function() {});
+    var rid = this.roomId;
+    var uid = this.userId;
+    if (rid && uid) {
+      // Remove self from members
+      SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(rid) + '&user_id=eq.' + encodeURIComponent(uid), function() {
+        // If I'm the creator (room_code = my invite_code), delete the room entirely
+        var myCode = localStorage.getItem('my_invite_code');
+        if (myCode) {
+          SUPABASE.delete('rooms', 'room_code=eq.' + encodeURIComponent(myCode), function() {});
+        } else {
+          // Just decrement member count
+          SUPABASE.patch('rooms', 'id=eq.' + rid, { member_count: 1 }, function() {});
+        }
+      });
     }
     localStorage.removeItem('sync_roomCode');
     localStorage.removeItem('sync_roomId');
-    localStorage.removeItem('sync_userId');
     localStorage.removeItem('sync_partnerId');
-    this.roomCode = null; this.roomId = null; this.partnerId = null;
+    localStorage.removeItem('room_password');
+    this.roomCode = null; this.roomId = null; this.partnerId = null; this.partnerName = null;
   }
 };
