@@ -102,10 +102,12 @@ var Sync = {
   _loadPartner: function(cb) {
     var self = this;
     if (!this.roomId) { cb(); return; }
+    var hadPartner = !!this.partnerId;
     SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
       if (members) {
         for (var i = 0; i < members.length; i++) {
           if (members[i].user_id !== self.userId) {
+            var isNew = !self.partnerId;
             self.partnerId = members[i].user_id;
             SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(self.partnerId) + '&limit=1', function(users) {
               if (users && users.length) {
@@ -113,6 +115,7 @@ var Sync = {
               }
               localStorage.setItem('sync_partnerId', self.partnerId);
               localStorage.setItem('sync_partnerName', self.partnerName || 'TA');
+              if (isNew && self.onChange) self.onChange('paired');
               cb();
             });
             return;

@@ -73,19 +73,20 @@ function doCreateRoom(){
   var pwd=document.getElementById('create-password').value.trim();
   if(pwd.length<4){document.getElementById('create-error').textContent='密码至少4位';return}
   document.getElementById('create-error').textContent='';
-  document.getElementById('room-waiting').classList.remove('hidden');
   if(typeof Sync!=='undefined') Sync.createRoom(pwd, function(result){
-    if(result.error){document.getElementById('create-error').textContent=result.error;document.getElementById('room-waiting').classList.add('hidden');return}
+    if(result.error){document.getElementById('create-error').textContent=result.error;return}
     document.getElementById('room-code-display').textContent=result.roomCode;
-    var tries=0;
-    function waitPartner(){
-      tries++;
-      if(tries>120){cancelCreate();return}
-      if(typeof Sync!=='undefined'&&Sync.partnerId){onPaired();return}
-      _waitingTimer=setTimeout(waitPartner,1500);
-    }
-    _waitingTimer=setTimeout(waitPartner,1500);
+    document.getElementById('room-waiting').classList.remove('hidden');
+    showToast('房间已创建',2000);
+    // Update UI: show paired as "waiting" state
+    if(typeof App!=='undefined') App._updatePairUI();
+    // Background poll will detect when partner joins
   });
+}
+
+function cancelCreate(){
+  closePairing();
+  // Don't leave room — just close the overlay
 }
 
 function doJoinRoom(){
@@ -100,6 +101,11 @@ function doJoinRoom(){
   });
 }
 
+function copyInviteCode(){
+  var c=(typeof Sync!=='undefined'&&Sync._getInviteCode)?Sync._getInviteCode():localStorage.getItem('my_invite_code')||'';
+  if(!c){showToast('邀请码未生成');return}
+  if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){showToast('已复制',1500)}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}
+}
 function onPaired(){
   if(_waitingTimer){clearTimeout(_waitingTimer);_waitingTimer=null}
   document.getElementById('pairing-overlay').classList.add('hidden');
