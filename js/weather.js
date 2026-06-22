@@ -29,7 +29,7 @@ renderStatus:function(){
   if(paired){
     var pn=localStorage.getItem('sync_partnerName')||'TA';
     var days=this._getTogetherDays();
-    el.innerHTML='<div style="text-align:center;padding:8px 0;font-size:13px"><span style="color:var(--accent-green);font-weight:500">💞 '+pn+'</span><span style="color:var(--text-dim);margin-left:8px">在一起 '+days+' 天</span></div>';
+    el.innerHTML='<div style="text-align:center;padding:8px 0;font-size:13px"><span style="color:var(--accent-green);font-weight:500">💞 '+pn+'</span><span style="color:var(--text-dim);margin-left:8px">在一起 '+days+' 天</span><span style="margin-left:10px;font-size:11px;color:var(--accent-warm);cursor:pointer" onclick="Weekly._openReport()">📊 周报 →</span></div>';
   }else if(hasRoom){
     var code=Sync.roomCode,pwd=localStorage.getItem('room_password')||'';
     el.innerHTML='<div class="card" style="text-align:center"><div style="font-size:32px;margin-bottom:4px">⏳</div><p style="font-size:14px;color:var(--text-secondary)">等待TA加入…</p><div class="my-code-box"><span>房间号（点击复制）</span><strong style="cursor:pointer" onclick="copyText(\''+code+'\')">'+code+'</strong></div>'+(pwd?'<p style="font-size:12px;color:var(--text-dim);cursor:pointer" onclick="copyText(\''+pwd+'\')">密码：'+pwd+'（点击复制）</p>':'')+'<button class="btn-text btn-danger" onclick="leaveAndReset()">退出房间</button></div>';
@@ -55,7 +55,7 @@ renderTimeline:function(){
   var groups=groupByDate(items);
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';
-  card.innerHTML='<div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>💬 对话</span><span style="font-size:11px;color:var(--accent-warm);cursor:pointer;font-weight:400" onclick="Weekly._openReport();event.stopPropagation()">📊 周报</span></div>';
+  card.innerHTML='<div class="card-title">💬 对话</div>';
   var scroll=document.createElement('div');scroll.style.cssText='flex:1;overflow-y:auto;min-height:300px';
   scroll.id='timeline-scroll';
 
