@@ -285,7 +285,21 @@ var seen = false;
                 hasNewFromPartner = true; break;
               }
             }
-            if (hasNewFromPartner) self._flashTitle();
+            if (hasNewFromPartner) {
+              self._flashTitle();
+              // After decrypt, show notification with message preview
+              Promise.all(decryptPromises).then(function() {
+                var lastPartnerMsg = '';
+                for (var p = self.partnerMessages.length - 1; p >= 0; p--) {
+                  if (self.partnerMessages[p].sender === 'partner') {
+                    lastPartnerMsg = self.partnerMessages[p].text || '给你发了一条消息';
+                    break;
+                  }
+                }
+                var pn = localStorage.getItem('sync_partnerName') || 'TA';
+                self._notify('💬 ' + pn + '的消息', lastPartnerMsg);
+              });
+            }
           }
         }
         // Wait for all decryptions to finish before notifying UI
@@ -320,6 +334,36 @@ var seen = false;
       document.title = this._originalTitle;
       this._originalTitle = null;
     }
+  },
+
+  // ========== Browser Notification ==========
+  _notifyEnabled: false,
+  requestNotify: function() {
+    var self = this;
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      self._notifyEnabled = true;
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(function(p) {
+        if (p === 'granted') self._notifyEnabled = true;
+      });
+    }
+  },
+  _notify: function(title, body) {
+    if (!this._notifyEnabled || !('Notification' in window)) return;
+    if (typeof App !== 'undefined' && App.currentView === 'weather') return; // Don't notify if already looking
+    try {
+      var opts = { body: body || '', icon: '/baby-time/icon-192.png', tag: 'mood-msg', renotify: true };
+      // Use Service Worker if available, otherwise direct
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(function(reg) {
+          reg.showNotification(title, opts);
+        });
+      } else {
+        var n = new Notification(title, opts);
+        setTimeout(function() { n.close(); }, 5000);
+      }
+    } catch(e) {} // Silently fail if not supported
   },
 
   // ========== Actions ==========
