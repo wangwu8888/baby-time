@@ -20,7 +20,9 @@
 <div id="view-weather" class="view active">
 <header class="view-header"><h1>心情气象台</h1><span class="room-badge" id="room-badge"></span></header>
 
-<div class="card my-mood-card">
+<div id="status-area"></div>
+
+<div class="card my-mood-card" id="my-mood-card">
 <div class="mood3d-wrapper">
 <div class="mood3d-button"><span class="mood3d-shine"></span><span class="mood3d-icon" id="mood3d-icon">☀️</span><span class="mood3d-label" id="mood3d-label">晴朗</span></div>
 <div class="mood3d-shadow"></div>
@@ -154,12 +156,13 @@
 <div class="auth-waiting-icon">💫</div>
 <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">等待TA加入…</p>
 <div class="my-code-box"><span>房间号</span><strong id="room-code-display" style="cursor:pointer" title="点击复制" onclick="copyRoomCode()"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
+<p style="font-size:12px;color:var(--text-secondary)">把房间号和密码发给TA</p>
 <button class="btn-text" onclick="cancelCreate()">取消</button>
 </div>
 <button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
 </div>
 <div id="pairing-join" class="hidden" style="padding:24px 20px">
-<input type="text" id="join-code" class="auth-input" placeholder="输入TA的房间号" maxlength="10" style="text-transform:uppercase">
+<input type="text" id="join-code" class="auth-input" placeholder="输入房间号" maxlength="10" style="text-transform:uppercase">
 <input type="password" id="join-password" class="auth-input" placeholder="输入房间密码" maxlength="20">
 <p class="auth-error" id="join-error"></p>
 <button class="btn-primary btn-full" onclick="doJoinRoom()">加入</button>
@@ -174,15 +177,15 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="js/utils.js?v=5"></script>
-<script src="js/storage.js?v=5"></script>
-<script src="js/supabase.js?v=5"></script>
-<script src="js/crypto.js?v=5"></script>
-<script src="js/sync.js?v=5"></script>
-<script src="js/weather.js?v=5"></script>
-<script src="js/treehole.js?v=5"></script>
-<script src="js/doodle.js?v=5"></script>
-<script src="js/send.js?v=5"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/utils.js?v=6"></script>
+<script src="js/storage.js?v=6"></script>
+<script src="js/supabase.js?v=6"></script>
+<script src="js/crypto.js?v=6"></script>
+<script src="js/sync.js?v=6"></script>
+<script src="js/weather.js?v=6"></script>
+<script src="js/treehole.js?v=6"></script>
+<script src="js/doodle.js?v=6"></script>
+<script src="js/send.js?v=6"></script>
+<script src="js/app.js?v=6"></script>
 </body>
 </html>
