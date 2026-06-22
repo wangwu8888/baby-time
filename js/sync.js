@@ -313,7 +313,7 @@ var seen = false;
   _originalTitle: null,
   _flashTitle: function() {
     // Don't flash if user is already looking at the weather view
-    if (typeof App !== 'undefined' && App.currentView === 'weather') return;
+    if (typeof App !== 'undefined' && (App.currentView === 'weather' || App.currentView === 'chat')) return;
     if (this._flashTimer) return; // Already flashing
     var self = this;
     this._originalTitle = document.title;
@@ -378,7 +378,7 @@ var seen = false;
   },
   _notify: function(title, body) {
     if (!this._notifyEnabled) return;
-    if (typeof App !== 'undefined' && App.currentView === 'weather') return;
+    if (typeof App !== 'undefined' && (App.currentView === 'weather' || App.currentView === 'chat')) return;
     try {
       var opts = { body: body || '', tag: 'mood-msg', renotify: true };
       var n = new Notification(title, opts);

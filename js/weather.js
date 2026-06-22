@@ -1,4 +1,4 @@
-var Weather={activeMood:'sunny',init:function(){this.render();this._checkGreeting()},render:function(){this.renderStatus();this.renderMyMood();this.renderPartnerMood();this.renderTimeline();this.renderRoomBadge();this._applyMoodBg()},
+var Weather={activeMood:'sunny',init:function(){this.render();this._checkGreeting()},render:function(){this.renderStatus();this.renderMyMood();this.renderPartnerMood();this.renderRoomBadge();this._applyMoodBg()},
 
 _applyMoodBg:function(){
   var m=Sync.myMood||getMoodState('me');
@@ -56,7 +56,7 @@ renderTimeline:function(){
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';
   card.innerHTML='<div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>💬 对话</span><span style="font-size:11px;color:var(--accent-warm);cursor:pointer;font-weight:400" onclick="Weekly._openReport();event.stopPropagation()">📊 周报</span></div>';
-  var scroll=document.createElement('div');scroll.style.cssText='max-height:480px;overflow-y:auto;flex:1';
+  var scroll=document.createElement('div');scroll.style.cssText='flex:1;overflow-y:auto;min-height:300px';
   scroll.id='timeline-scroll';
 
   var self=this;
@@ -131,5 +131,5 @@ _getTogetherDays:function(){
   if(!start){start=new Date().toISOString();localStorage.setItem('paired_since',start)}
   return Math.floor((new Date()-new Date(start))/86400000)+1;
 },
-refresh:function(){this.render();this.renderInputBar()}
+refresh:function(){this.render()}
 };
