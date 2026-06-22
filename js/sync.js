@@ -255,24 +255,20 @@ var Sync = {
     var self = this;
     if (!this.userId) return;
     var body = { user_id: this.userId, room_id: this.roomId || null, status: st, updated_at: new Date().toISOString() };
-    SUPABASE.get('moods', 'user_id=eq.' + encodeURIComponent(this.userId) + '&limit=1', function(rows) {
-      if (rows && rows.length) {
-        SUPABASE.patch('moods', 'user_id=eq.' + encodeURIComponent(self.userId), body, function() {
-          self.myMood = { status: st, updatedAt: body.updated_at };
-        });
-      } else {
-        SUPABASE.post('moods', body, function() {
-          self.myMood = { status: st, updatedAt: body.updated_at };
-        });
+    self.myMood = { status: st, updatedAt: body.updated_at };
+    // Use upsert: PATCH first, POST as fallback
+    SUPABASE.patch('moods', 'user_id=eq.' + encodeURIComponent(this.userId), body, function() {
+      // PATCH done (may update 0 rows for new user, that's ok — try POST)
+      SUPABASE.post('moods', body, function() {
+        // POST either creates new or silently conflicts (both OK)
+      });
+      if (self.roomId) {
+        SUPABASE.post('messages', {
+          room_id: self.roomId, sender_user_id: self.userId,
+          type: 'mood_change', content: { mood: st }, created_at: new Date().toISOString()
+        }, function() {});
       }
     });
-    // Mood change message
-    if (this.roomId) {
-      SUPABASE.post('messages', {
-        room_id: this.roomId, sender_user_id: this.userId,
-        type: 'mood_change', content: { mood: st }, created_at: new Date().toISOString()
-      }, function() {});
-    }
   },
 
   sendMessage: function(t, dd, mo) {
