@@ -137,12 +137,6 @@ var Sync = {
         if (others.length > 0) {
           foundPartner = others[0].user_id;
         }
-        // Clean up stale extra members (keep only the most recent non-self)
-        if (others.length > 1) {
-          for (var k = 1; k < others.length; k++) {
-            SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(self.roomId) + '&user_id=eq.' + encodeURIComponent(others[k].user_id), function() {});
-          }
-        }
       }
       if (foundPartner) {
         var isNew = !hadPartner;
