@@ -289,6 +289,17 @@ var seen = false;
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
                 self.partnerMessages.push(msgObj);
+                // Store partner's shared diaries in localStorage for treehole
+                if (m.type === 'shared_diary' && msgObj.sender === 'partner') {
+                  var sd = { id: m.id, text: c.text||'', doodleDataUrl: c.doodleDataUrl||null, mood: c.mood||'sunny', createdAt: m.created_at, read: false };
+                  try {
+                    var sds = JSON.parse(localStorage.getItem('shared_diaries') || '[]');
+                    // Avoid duplicates
+                    var dup = false;
+                    for (var di = 0; di < sds.length; di++) { if (sds[di].id === m.id) { dup = true; break; } }
+                    if (!dup) { sds.unshift(sd); if (sds.length > 50) sds.length = 50; localStorage.setItem('shared_diaries', JSON.stringify(sds)); }
+                  } catch(e) {}
+                }
                 // Decrypt if needed — wait for all decrypts before notifying UI
                 if (c.encrypted && typeof Crypto !== 'undefined' && Crypto._ready) {
                   decryptPromises.push(

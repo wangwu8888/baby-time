@@ -1,6 +1,51 @@
-var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,_annOpen:true,_wishOpen:true,init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
+var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,_annOpen:true,_wishOpen:true,_sharedDiaryOpen:true,init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
 
-render:function(){this.renderDiary()},
+render:function(){this.renderSharedDiaries();this.renderDiary()},
+
+_toggleSharedDiary:function(){this._sharedDiaryOpen=!this._sharedDiaryOpen;this.renderSharedDiaries()},
+
+renderSharedDiaries:function(){
+  var el=document.getElementById('shared-diary-section');if(!el)return;
+  if(typeof Sync==='undefined'||!Sync.partnerId){el.innerHTML='';return}
+  var self=this;
+  var sds=[];
+  try{sds=JSON.parse(localStorage.getItem('shared_diaries')||'[]')}catch(e){}
+  var unread=0;
+  for(var i=0;i<sds.length;i++){if(!sds[i].read)unread++}
+  var html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="TreeHole._toggleSharedDiary()"><div class="card-title" style="margin:0">📬 TA分享的日记'+(unread>0?' <span style="display:inline-block;width:8px;height:8px;background:#F43F5E;border-radius:50%;vertical-align:middle;margin-left:2px"></span>':'')+'</div><span id="shared-diary-toggle" style="font-size:18px">'+(this._sharedDiaryOpen?'▼':'▶')+'</span></div>';
+  html+='<div id="shared-diary-body" style="'+(this._sharedDiaryOpen?'':'display:none')+'">';
+  if(!sds.length){
+    html+='<p class="empty-hint">还没有收到TA分享的日记</p>';
+  }else{
+    sds.forEach(function(sd,i){
+      var m=MOOD_CONFIG[sd.mood]||MOOD_CONFIG.sunny;
+      var preview=sd.text||'';
+      if(preview.length>50)preview=preview.substring(0,50)+'…';
+      html+='<div class="card" style="border-left:3px solid '+m.accent+';cursor:pointer;position:relative" onclick="TreeHole._viewSharedDiary('+i+')"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:500">'+m.icon+' '+formatMonthDay(sd.createdAt)+'</span><span style="font-size:11px;color:var(--text-dim)">'+formatTime(sd.createdAt)+'</span></div>';
+      html+='<div style="font-size:14px;line-height:1.5;white-space:pre-wrap">'+escapeHtml(preview)+'</div>';
+      if(sd.doodleDataUrl)html+='<div style="margin-top:6px"><span style="font-size:18px">🎨 含涂鸦</span></div>';
+      html+='<div style="margin-top:4px;font-size:11px;color:'+(sd.read?'var(--accent-green)':'var(--accent-warm)')+'">'+(sd.read?'✓ 已读':'● 未读')+'</div>';
+      html+='</div>';
+    });
+  }
+  html+='</div></div>';
+  el.innerHTML=html;
+},
+
+_viewSharedDiary:function(i){
+  var sds=[];
+  try{sds=JSON.parse(localStorage.getItem('shared_diaries')||'[]')}catch(e){}
+  var sd=sds[i];if(!sd)return;
+  if(!sd.read){sds[i].read=true;localStorage.setItem('shared_diaries',JSON.stringify(sds));this.renderSharedDiaries()}
+  var m=MOOD_CONFIG[sd.mood]||MOOD_CONFIG.sunny;
+  var pn=localStorage.getItem('sync_partnerName')||'TA';
+  var modal=document.createElement('div');modal.className='modal';modal.style.display='flex';
+  var dd=sd.doodleDataUrl?'<img src="'+sd.doodleDataUrl+'" style="max-width:100%;border-radius:12px;margin-top:8px">':'';
+  modal.innerHTML='<div class="modal-backdrop" style="position:fixed"></div><div class="modal-card"><h3>📖 '+pn+'的日记</h3><div style="font-size:36px;text-align:center">'+m.icon+'</div><div style="font-size:14px;color:var(--text-dim);text-align:center">'+formatDateFull(sd.createdAt)+'</div><div style="font-size:15px;line-height:1.6;white-space:pre-wrap;margin-top:8px">'+escapeHtml(sd.text)+'</div>'+dd+'<button class="btn-secondary btn-full" style="margin-top:12px">关闭</button></div>';
+  document.body.appendChild(modal);
+  modal.querySelector('button').addEventListener('click',function(){modal.remove()});
+  modal.querySelector('.modal-backdrop').addEventListener('click',function(){modal.remove()});
+},
 
 renderDiary:function(){
   var el=document.getElementById('diary-section');if(!el)return;
