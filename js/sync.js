@@ -183,7 +183,6 @@ var Sync = {
         cb();
       }
   },
-  },
 
   _hashCode: function(str) {
     var h = 0;
