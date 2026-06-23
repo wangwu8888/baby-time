@@ -115,17 +115,18 @@ var Sync = {
                 });
               });
             }
-            // Find and delete stale members: keep the one who sent the most recent message
-            SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(room.id) + '&order=created_at.desc&limit=1', function(msgs) {
-              var activeUser = msgs && msgs.length ? msgs[0].sender_user_id : null;
+            // Find the active partner by checking recent messages (avoid deleting partner)
+            SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(room.id) + '&order=created_at.desc&limit=5', function(msgs) {
+              var counts = {};
+              if (msgs) { for (var mi = 0; mi < msgs.length; mi++) { var sid = msgs[mi].sender_user_id; counts[sid] = (counts[sid]||0) + 1; } }
+              var activeUser = null, maxCount = 0;
+              for (var uid in counts) { if (counts[uid] > maxCount) { maxCount = counts[uid]; activeUser = uid; } }
               SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id), function(allMembers) {
-                if (allMembers && allMembers.length >= 2) {
-                  var deleted = 0;
+                if (allMembers && allMembers.length >= 2 && activeUser) {
                   for (var k = 0; k < allMembers.length; k++) {
-                    // Delete members who are NOT the active message sender (likely stale old self)
+                    // Keep the active sender (real partner), delete stale members
                     if (allMembers[k].user_id !== activeUser && allMembers[k].user_id !== self.userId) {
                       SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(allMembers[k].user_id), function(){});
-                      deleted++;
                     }
                   }
                 }
