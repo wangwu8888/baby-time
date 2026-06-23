@@ -100,9 +100,17 @@ var Sync = {
           if (members && members.length) {
             self._loadPartner(function() { self._finish(code); cb({ success: true }); });
           } else {
+            // New identity — might be re-joining after data clear
+            var isFreshIdentity = !localStorage.getItem('care_mood_history');
             SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
               SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 2 }, function() {});
-              self._loadPartner(function() { self._finish(code); cb({ success: true }); });
+              self._loadPartner(function() {
+                self._finish(code);
+                if (isFreshIdentity) {
+                  setTimeout(function(){showToast('检测到新设备或数据已清除，旧消息归属可能不准 📱',4000)},500);
+                }
+                cb({ success: true });
+              });
             });
           }
         });
