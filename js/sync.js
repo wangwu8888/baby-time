@@ -102,14 +102,34 @@ var Sync = {
           } else {
             // New identity — might be re-joining after data clear
             var isFreshIdentity = !localStorage.getItem('care_mood_history');
-            SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
-              SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 2 }, function() {});
-              self._loadPartner(function() {
-                self._finish(code);
-                if (isFreshIdentity) {
-                  setTimeout(function(){showToast('检测到新设备或数据已清除，旧消息归属可能不准 📱',4000)},500);
+            // Clean up stale members before adding new one
+            function doJoin() {
+              SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
+                SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 2 }, function() {});
+                self._loadPartner(function() {
+                  self._finish(code);
+                  if (isFreshIdentity) {
+                    setTimeout(function(){showToast('检测到新设备或数据已清除，旧消息归属可能不准 📱',4000)},500);
+                  }
+                  cb({ success: true });
+                });
+              });
+            }
+            // Find and delete stale members: keep the one who sent the most recent message
+            SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(room.id) + '&order=created_at.desc&limit=1', function(msgs) {
+              var activeUser = msgs && msgs.length ? msgs[0].sender_user_id : null;
+              SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id), function(allMembers) {
+                if (allMembers && allMembers.length >= 2) {
+                  var deleted = 0;
+                  for (var k = 0; k < allMembers.length; k++) {
+                    // Delete members who are NOT the active message sender (likely stale old self)
+                    if (allMembers[k].user_id !== activeUser && allMembers[k].user_id !== self.userId) {
+                      SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(allMembers[k].user_id), function(){});
+                      deleted++;
+                    }
+                  }
                 }
-                cb({ success: true });
+                doJoin();
               });
             });
           }
