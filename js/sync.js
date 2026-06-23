@@ -147,19 +147,37 @@ var Sync = {
     SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
       var foundPartner = null;
       if (members) {
-        // Filter out self, sort by joined_at (newest first) to pick the real partner
         var others = [];
         for (var i = 0; i < members.length; i++) {
           if (members[i].user_id !== self.userId) {
             others.push(members[i]);
           }
         }
-        // Sort by joined_at descending (most recent first)
-        others.sort(function(a, b) { return new Date(b.joined_at || 0) - new Date(a.joined_at || 0); });
-        if (others.length > 0) {
+        if (others.length === 1) {
           foundPartner = others[0].user_id;
+          self._finishLoadPartner(foundPartner, hadPartner, cb);
+        } else if (others.length > 1) {
+          // Multiple candidates — check who has recent mood (real active partner)
+          var uids = others.map(function(o){return 'user_id=eq.'+encodeURIComponent(o.user_id)}).join('&or=');
+          SUPABASE.get('moods', 'or=('+uids+')&order=updated_at.desc&limit=1', function(moodRows) {
+            if (moodRows && moodRows.length) {
+              foundPartner = moodRows[0].user_id;
+            } else {
+              // Fallback: sort by joined_at descending
+              others.sort(function(a, b) { return new Date(b.joined_at || 0) - new Date(a.joined_at || 0); });
+              foundPartner = others[0].user_id;
+            }
+            self._finishLoadPartner(foundPartner, hadPartner, cb);
+          });
+          return;
         }
       }
+      self._finishLoadPartner(null, hadPartner, cb);
+    });
+  },
+
+  _finishLoadPartner: function(foundPartner, hadPartner, cb) {
+    var self = this;
       if (foundPartner) {
         var isNew = !hadPartner;
         self.partnerId = foundPartner;
@@ -186,7 +204,7 @@ var Sync = {
         localStorage.removeItem('sync_partnerName_custom');
         cb();
       }
-    });
+  },
   },
 
   _hashCode: function(str) {
