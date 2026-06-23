@@ -62,8 +62,11 @@ _toggleShare:function(id){
   var es=getEntries('me'),e=null;
   for(var i=0;i<es.length;i++){if(es[i].id===id){e=es[i];break}}
   if(e){updateEntry(id,{shared:!e.shared},'me');this.renderDiary();
-    if(!e.shared&&Sync.roomCode){Sync.sendMessage(e.text,e.doodleDataUrl||null,e.mood);showToast('已分享给TA')}
-    else{showToast('已取消分享')}}
+    if(!e.shared&&Sync.roomCode){
+      // Send as shared_diary — partner sees a preview card, not the full content inline
+      Sync.sendSharedDiary(e.text||'',e.doodleDataUrl||null,e.mood);
+      showToast('已分享给TA 📖')
+    }else{showToast('已取消分享')}}
 },
 
 _showFull:function(src){

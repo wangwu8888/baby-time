@@ -68,6 +68,25 @@ renderTimeline:function(){
         var pn=localStorage.getItem('sync_partnerName')||'TA';
         row.style.cssText='text-align:center;padding:4px 0;font-size:12px;color:var(--text-dim)';
         row.textContent=pn+' '+moodIcon+' 心情更新';
+      }else if(it.type==='shared_diary'){
+        // Diary share: show a preview card, not full content
+        var isMyShare=it.sender==='me';
+        var senderName=isMyShare?'我':(localStorage.getItem('sync_partnerName')||'TA');
+        row.style.cssText='text-align:center;margin-bottom:8px';
+        var diaryCard=document.createElement('div');
+        diaryCard.style.cssText='display:inline-block;max-width:85%;background:var(--bg-card);padding:14px 16px;border-radius:16px;box-shadow:var(--shadow);cursor:pointer;text-align:left';
+        var preview=it.text||'';
+        if(preview.length>40)preview=preview.substring(0,40)+'…';
+        diaryCard.innerHTML='<div style="font-size:20px;margin-bottom:6px">📖</div><div style="font-size:13px;color:var(--text-dim);margin-bottom:2px">'+senderName+'分享了一篇日记</div><div style="font-size:14px;color:var(--text);margin:6px 0">"'+escapeHtml(preview)+'"</div><div style="font-size:11px;color:var(--accent-warm);margin-top:6px">👆 点击查看</div>';
+        diaryCard.addEventListener('click',function(){
+          var m=document.createElement('div');m.className='modal';m.style.display='flex';
+          var dd=it.doodleDataUrl?'<img src="'+it.doodleDataUrl+'" style="max-width:100%;border-radius:12px;margin-top:8px">':'';
+          m.innerHTML='<div class="modal-backdrop" style="position:fixed"></div><div class="modal-card"><h3>📖 '+senderName+'的日记</h3><div style="font-size:36px;text-align:center">'+moodIcon+'</div><div style="font-size:15px;line-height:1.6;white-space:pre-wrap">'+escapeHtml(it.text)+'</div>'+dd+'<button class="btn-secondary btn-full" id="modal-diary-close">关闭</button></div>';
+          document.body.appendChild(m);
+          document.getElementById('modal-diary-close').addEventListener('click',function(){m.remove()});
+          m.querySelector('.modal-backdrop').addEventListener('click',function(){m.remove()});
+        });
+        row.appendChild(diaryCard);
       }else{
         var isPartner=it.sender!=='me';
         row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');

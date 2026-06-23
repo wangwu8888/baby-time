@@ -408,6 +408,23 @@ var seen = false;
     });
   },
 
+  sendSharedDiary: function(t, dd, mo) {
+    var self = this;
+    if (!this.roomId || !this.userId) return;
+    var msg = {
+      room_id: self.roomId, sender_user_id: self.userId,
+      type: 'shared_diary',
+      content: { text: t || '', doodleDataUrl: dd || null, mood: mo || 'sunny' },
+      created_at: new Date().toISOString()
+    };
+    SUPABASE.post('messages', msg, function(result) {
+      var newId = result && result.length ? result[0].id : null;
+      if (newId) {
+        self.partnerMessages.push({id:newId,sender:'me',text:t||'',doodleDataUrl:dd||null,mood:mo||'sunny',type:'shared_diary',createdAt:msg.created_at});
+      }
+    });
+  },
+
   leave: function() {
     if (this.timer) clearInterval(this.timer);
     var rid = this.roomId;
