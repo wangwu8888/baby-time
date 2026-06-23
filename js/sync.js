@@ -2,7 +2,7 @@
 // Encryption: disabled for stability. Set to true to re-enable.
 var ENCRYPTION_ENABLED = false;
 var Sync = {
-  userId: null, roomId: null, roomCode: null,
+  userId: null, roomId: null, roomCode: null, _partnerSince: null,
   myId: 1,  // compatibility: truthy for old doJoin() check
   partnerId: null, partnerName: null,
   myMood: null, partnerMood: null, partnerMessages: [],
@@ -167,12 +167,16 @@ var Sync = {
           if (!localStorage.getItem('sync_partnerName_custom')) {
             localStorage.setItem('sync_partnerName', self.partnerName || 'TA');
           }
-          if (isNew && self.onChange) self.onChange('paired');
+          if (isNew && self.onChange) { self._partnerSince = new Date(); self.onChange('paired'); }
           cb();
         });
       } else {
-        // No partner found
-        if (hadPartner && self.onChange) self.onChange('partner_left');
+        // No partner found — but don't clear if just paired (race condition protection)
+        if (hadPartner) {
+          var recentlyPaired = self._partnerSince && (new Date() - self._partnerSince < 15000);
+          if (!recentlyPaired && self.onChange) self.onChange('partner_left');
+          if (recentlyPaired) { cb(); return; } // Keep existing partner, ignore transient failure
+        }
         self.partnerId = null;
         self.partnerName = null;
         self.partnerMood = null;
