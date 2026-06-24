@@ -136,7 +136,7 @@ var Sync = {
           self._finishLoadPartner(foundPartner, hadPartner, cb);
         } else if (others.length > 1) {
           // Multiple candidates — check who has recent mood (real active partner)
-          var uids = others.map(function(o){return 'user_id=eq.'+encodeURIComponent(o.user_id)}).join('&or=');
+          var uids = others.map(function(o){return 'user_id.eq.'+encodeURIComponent(o.user_id)}).join(',');
           SUPABASE.get('moods', 'or=('+uids+')&order=updated_at.desc&limit=1', function(moodRows) {
             if (moodRows && moodRows.length) {
               foundPartner = moodRows[0].user_id;
