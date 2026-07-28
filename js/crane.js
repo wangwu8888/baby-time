@@ -4,9 +4,11 @@ var Crane = {
   _taCount: 0,
   _total: 0,
   _icons: [
-    { emoji:'🕊️', label:'纸鹤', weight:45, size:30 },
-    { emoji:'🌟', label:'流星', weight:25, size:32 },
-    { emoji:'✨', label:'星光', weight:30, size:24 }
+    { emoji:'❤️', label:'红心', weight:20, size:30 },
+    { emoji:'💖', label:'闪心', weight:20, size:28 },
+    { emoji:'💕', label:'双心', weight:20, size:26 },
+    { emoji:'✨', label:'星光', weight:20, size:24 },
+    { emoji:'🌟', label:'流星', weight:20, size:32 }
   ],
 
   init: function() {
