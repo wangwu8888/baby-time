@@ -68,8 +68,8 @@ renderTimeline:function(){
         var pn=localStorage.getItem('sync_partnerName')||'TA';
         row.style.cssText='text-align:center;padding:4px 0;font-size:12px;color:var(--text-dim)';
         row.textContent=pn+' '+moodIcon+' 心情更新';
-      }else if(it.type==='shared_diary'){
-        return; // Shared diaries shown in treehole, not in chat
+      }else if(it.type==='shared_diary'||it.type==='crane'||it.type==='diary_read'){
+        return; // Not shown in chat timeline
       }else{
         var isPartner=it.sender!=='me';
         row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');
