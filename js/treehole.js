@@ -1,4 +1,4 @@
-var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,_annOpen:true,_wishOpen:true,_sharedDiaryOpen:true,_expanded:{},init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
+var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:false,_annOpen:true,_wishOpen:true,_sharedDiaryOpen:true,_expanded:{},init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
 
 render:function(){this.renderSharedDiaries();this.renderDiary()},
 
