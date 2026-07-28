@@ -1,4 +1,4 @@
-var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,_annOpen:true,_wishOpen:true,_sharedDiaryOpen:true,init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
+var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:true,_annOpen:true,_wishOpen:true,_sharedDiaryOpen:true,_expanded:{},init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
 
 render:function(){this.renderSharedDiaries();this.renderDiary()},
 
@@ -64,14 +64,28 @@ renderDiary:function(){
       html+='<div class="date-group-label">'+day+'</div>';
       gs[day].forEach(function(e,i){
         var m=MOOD_CONFIG[e.mood]||MOOD_CONFIG.sunny;
-        html+='<div class="card" style="border-left:3px solid '+m.accent+'"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:500">'+formatMonthDay(e.createdAt)+' · '+m.icon+' '+m.label+'</span><span style="font-size:11px;color:var(--text-dim)">'+formatTime(e.createdAt)+'</span></div>';
-        if(e.text)html+='<div style="font-size:14px;line-height:1.5;white-space:pre-wrap" id="diary-text-'+e.id+'">'+escapeHtml(e.text)+'</div>';
-        if(e.doodleDataUrl)html+='<div style="margin-top:8px"><img src="'+e.doodleDataUrl+'" style="max-width:120px;border-radius:8px;cursor:pointer" onclick="TreeHole._showFull(\''+e.doodleDataUrl+'\')"></div>';
-        html+='<div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end">';
-        html+='<button class="btn-text" style="font-size:11px" onclick="TreeHole._editEntry(\''+e.id+'\')">✏️ 编辑</button>';
-        html+='<button class="btn-text btn-danger" style="font-size:11px" onclick="TreeHole._deleteEntry(\''+e.id+'\')">🗑️ 删除</button>';
-        if(typeof Sync!=='undefined'&&Sync.partnerId){html+='<button class="share-btn'+(e.shared?' shared':'')+'" style="font-size:11px" onclick="TreeHole._toggleShare(\''+e.id+'\')">'+(e.shared?'已分享':'分享给TA')+'</button>'}
-        html+='</div></div>';
+        var preview=(e.text||'');if(preview.length>35)preview=preview.substring(0,35)+'…';
+        var isExpanded=!!self._expanded[e.id];
+        html+='<div class="diary-row" style="border-left:3px solid '+m.accent+';padding:8px 12px;margin-bottom:4px;background:var(--bg-card);border-radius:0 8px 8px 0;cursor:pointer" onclick="TreeHole._toggleEntry(\''+e.id+'\')">';
+        html+='<div style="display:flex;align-items:center;justify-content:space-between">';
+        html+='<span style="font-size:14px">'+m.icon+' <span style="font-size:12px;color:var(--text-dim)">'+formatMonthDay(e.createdAt)+'</span></span>';
+        html+='<span style="font-size:11px;color:var(--text-dim)">'+(isExpanded?'▲':'▼')+'</span>';
+        html+='</div>';
+        if(!isExpanded){
+          html+='<div style="font-size:13px;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(preview||'(空)')+'</div>';
+          if(e.doodleDataUrl)html+='<span style="font-size:12px">🎨</span> ';
+          if(e.shared)html+='<span style="font-size:10px;color:var(--accent-green)">已分享</span>';
+        }else{
+          if(e.text)html+='<div style="font-size:14px;line-height:1.5;white-space:pre-wrap;margin-top:6px">'+escapeHtml(e.text)+'</div>';
+          if(e.doodleDataUrl)html+='<div style="margin-top:6px"><img src="'+e.doodleDataUrl+'" style="max-width:120px;border-radius:8px;cursor:pointer" onclick="event.stopPropagation();TreeHole._showFull(\''+e.doodleDataUrl+'\')"></div>';
+          html+='<div style="font-size:11px;color:var(--text-dim);margin-top:4px">'+formatTime(e.createdAt)+'</div>';
+          html+='<div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end" onclick="event.stopPropagation()">';
+          html+='<button class="btn-text" style="font-size:11px" onclick="TreeHole._editEntry(\''+e.id+'\')">✏️</button>';
+          html+='<button class="btn-text btn-danger" style="font-size:11px" onclick="TreeHole._deleteEntry(\''+e.id+'\')">🗑️</button>';
+          if(typeof Sync!=='undefined'&&Sync.partnerId){html+='<button class="share-btn'+(e.shared?' shared':'')+'" style="font-size:11px" onclick="TreeHole._toggleShare(\''+e.id+'\')">'+(e.shared?'已分享':'分享给TA')+'</button>'}
+          html+='</div>';
+        }
+        html+='</div>';
       });
     });
   }
@@ -80,6 +94,7 @@ renderDiary:function(){
 },
 
 _toggleDiary:function(){this._diaryOpen=!this._diaryOpen;this.renderDiary();var mel=document.getElementById('memorial-section');if(mel)mel.scrollIntoView({behavior:'smooth'})},
+_toggleEntry:function(id){this._expanded[id]=!this._expanded[id];this.renderDiary()},
 
 _editEntry:function(id){
   var es=getEntries('me'),e=null;
