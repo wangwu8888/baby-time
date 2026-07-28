@@ -83,21 +83,30 @@ var Crane = {
     // Keyboard shortcut removed to prevent rapid flooding
   },
 
-  _lastClick: 0,
+  _lastClick: 0, _pendingSync: 0,
   addOne: function() {
     if (!Sync.roomCode) return;
     var now = Date.now();
-    if (now - this._lastClick < 5000) { showToast('慢慢来，5秒后再点哦 🕊️',1500); return; }
+    if (now - this._lastClick < 2000) { showToast('慢慢来哦 🕊️',1000); return; }
     this._lastClick = now;
     var icon = this._pickIcon();
     this._myCount++;
     this._total = this._myCount + this._taCount;
+    this._pendingSync++;
     this._saveCounts();
     this.render();
     this._flyIn(icon);
-    Sync.sendCrane();
-    // Check milestone
+    // Batch sync: only send to Supabase every 10 clicks or 15 seconds
+    var self = this;
+    if (this._pendingSync >= 10) { this._flushCrane(); }
+    else { clearTimeout(this._syncTimer); this._syncTimer = setTimeout(function(){self._flushCrane()},15000); }
     if (this._total === 99) this._milestone();
+  },
+  _flushCrane: function() {
+    if (this._pendingSync <= 0) return;
+    var n = this._pendingSync;
+    this._pendingSync = 0;
+    Sync.sendCraneBatch(n);
   },
 
   clearAll: function() {
@@ -112,12 +121,13 @@ var Crane = {
     Sync.clearCranes();
   },
 
-  onTaCrane: function() {
-    this._taCount++;
+  onTaCrane: function(count) {
+    count = count || 1;
+    this._taCount += count;
     this._total = this._myCount + this._taCount;
     this._saveCounts();
     this.render();
-    this._flyIn(this._pickIcon());
+    for (var i = 0; i < Math.min(count, 5); i++) { setTimeout((function(){this._flyIn(this._pickIcon())}).bind(this), i*200); }
     showToast('💌 TA想你了', 2000);
     if (this._total === 99) this._milestone();
   },

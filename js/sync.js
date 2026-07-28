@@ -290,10 +290,10 @@ var seen = false;
                 var msgObj = {
                   id: m.id, sender: m.sender_user_id === self.userId ? 'me' : 'partner',
                   text: c.text || '', doodleDataUrl: m.type === 'doodle' ? (c.doodleDataUrl || c.text) : null,
-                  mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
+                  mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at, batchCount: c.count || 1
                 };
-                // Don't push system messages to chat timeline
-                self.partnerMessages.push(msgObj);
+                // Crane messages stay out of chat entirely
+                if (m.type !== 'crane') self.partnerMessages.push(msgObj);
                 // Handle diary read receipts
                 if (m.type === 'diary_read' && msgObj.sender === 'partner') {
                   var did = c.diaryId;
@@ -308,7 +308,7 @@ var seen = false;
                 if (m.type === 'crane' && msgObj.sender === 'partner') {
                   var act = c.action || 'add';
                   if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(); }
-                  else { if (typeof Crane !== 'undefined') Crane.onTaCrane(); }
+                  else { if (typeof Crane !== 'undefined') Crane.onTaCrane(c.count || 1); }
                 }
                 // Store partner's shared diaries in localStorage for treehole
                 if (m.type === 'shared_diary' && msgObj.sender === 'partner') {
@@ -499,12 +499,12 @@ var seen = false;
     });
   },
 
-  sendCrane: function() {
+  sendCraneBatch: function(count) {
     var self = this;
-    if (!this.roomId || !this.userId) return;
+    if (!this.roomId || !this.userId || !count) return;
     SUPABASE.post('messages', {
       room_id: this.roomId, sender_user_id: this.userId,
-      type: 'crane', content: { action: 'add' },
+      type: 'crane', content: { action: 'add', count: count },
       created_at: new Date().toISOString()
     }, function() {});
   },
