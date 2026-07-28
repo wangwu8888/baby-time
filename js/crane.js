@@ -4,10 +4,9 @@ var Crane = {
   _taCount: 0,
   _total: 0,
   _icons: [
-    { emoji:'🕊️', label:'纸鹤', weight:35, size:30 },
-    { emoji:'🪶', label:'羽毛', weight:25, size:26 },
-    { emoji:'🌟', label:'流星', weight:20, size:32 },
-    { emoji:'✨', label:'星光', weight:20, size:24 }
+    { emoji:'🕊️', label:'纸鹤', weight:45, size:30 },
+    { emoji:'🌟', label:'流星', weight:25, size:32 },
+    { emoji:'✨', label:'星光', weight:30, size:24 }
   ],
 
   init: function() {
@@ -75,7 +74,7 @@ var Crane = {
       '<div style="flex:1;display:flex;flex-direction:column;gap:8px">' +
       '<div style="font-size:13px;line-height:1.5;color:var(--text)">我 <b style="color:var(--accent-warm)">'+this._myCount+'</b> · TA <b style="color:var(--accent-blue)">'+this._taCount+'</b></div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="btn-primary" onclick="Crane.addOne();event.stopPropagation()" style="font-size:13px;padding:7px 16px;border-radius:20px;background:linear-gradient(135deg,#e8a0c0,#d4a0d4)">💌 想你了</button>' +
+      '<button class="btn-primary" onclick="Crane.addOne();event.stopPropagation()" style="font-size:13px;padding:7px 16px;border-radius:20px;background:linear-gradient(135deg,#e8a0c0,#d4a0d4)">🪶 想你了</button>' +
       (this._myCount > 0 ? '<button class="btn-text btn-danger" onclick="Crane.clearAll();event.stopPropagation()" style="font-size:11px">清空</button>' : '') +
       '</div></div></div></div>';
 
@@ -132,17 +131,21 @@ var Crane = {
   },
 
   _flyIn: function(icon) {
+    var jar = document.getElementById('crane-jar');
+    if (!jar) return;
+    var r = jar.getBoundingClientRect();
+    var tx = r.left + r.width/2 - icon.size/2;
+    var ty = r.top + r.height * 0.4;
     var el = document.createElement('div');
     el.textContent = icon.emoji;
-    el.style.cssText = 'position:fixed;z-index:500;font-size:'+icon.size+'px;bottom:-40px;right:'+(20+Math.random()*60)+'px;transition:all 0.7s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;filter:drop-shadow(0 2px 6px rgba(180,140,200,0.4))';
+    el.style.cssText = 'position:fixed;z-index:500;font-size:'+icon.size+'px;left:'+(Math.random()*window.innerWidth)+'px;top:-50px;transition:all 0.8s cubic-bezier(0.25,0.1,0.25,1.2);pointer-events:none;filter:drop-shadow(0 4px 8px rgba(180,140,200,0.5));opacity:0.95';
     document.body.appendChild(el);
     requestAnimationFrame(function() {
-      el.style.bottom = (40 + Math.random() * 30) + '%';
-      el.style.right = (10 + Math.random() * 30) + 'px';
-      el.style.transform = 'rotate('+((Math.random()-0.5)*60)+'deg) scale(0.7)';
-      el.style.opacity = '0.9';
+      el.style.left = (tx + (Math.random()-0.5)*20) + 'px';
+      el.style.top = (ty + Math.random()*20) + 'px';
+      el.style.transform = 'rotate('+((Math.random()-0.5)*80)+'deg) scale(0.6)';
     });
-    setTimeout(function() { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); }, 650);
+    setTimeout(function() { el.style.opacity = '0'; el.style.transform += ' scale(0.3)'; setTimeout(function() { el.remove(); }, 300); }, 750);
   },
 
   _flyOut: function(count) {
