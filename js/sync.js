@@ -273,7 +273,7 @@ var Sync = {
 
     // Poll messages
     if (this.roomId) {
-      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=50', function(rows) {
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=100', function(rows) {
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
@@ -314,7 +314,7 @@ var seen = false;
             }
           if (nc > 0) {
             self.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
-            if (self.partnerMessages.length > 100) self.partnerMessages.length = 100;
+            if (self.partnerMessages.length > 500) self.partnerMessages.length = 500;
             changed = true;
             // Flash title for new partner messages when not on weather view
             var hasNewFromPartner = false;
@@ -373,6 +373,48 @@ var seen = false;
   clearBadge: function() {
     var tab = document.querySelector('.tab-btn[data-view="chat"]');
     if (tab) tab.classList.remove('has-badge');
+  },
+  _loadingMore: false,
+  loadMoreMessages: function(cb) {
+    var self = this;
+    if (!this.roomId || this._loadingMore) return;
+    this._loadingMore = true;
+    // Find the oldest message date
+    var oldest = null;
+    for (var i = 0; i < this.partnerMessages.length; i++) {
+      var d = this.partnerMessages[i].createdAt;
+      if (!oldest || d < oldest) oldest = d;
+    }
+    var query = 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=50';
+    if (oldest) query += '&created_at=lt.' + encodeURIComponent(oldest);
+    SUPABASE.get('messages', query, function(rows) {
+      self._loadingMore = false;
+      if (rows && rows.length) {
+        var added = 0;
+        for (var i = rows.length - 1; i >= 0; i--) {
+          var m = rows[i];
+          var seen = false;
+          for (var j = 0; j < self.partnerMessages.length; j++) {
+            if (self.partnerMessages[j].id === m.id) { seen = true; break; }
+          }
+          if (!seen) {
+            var c = m.content;
+            if (typeof c === 'string') { try { c = JSON.parse(c); } catch(e) { c = {}; } }
+            self.partnerMessages.push({
+              id: m.id, sender: m.sender_user_id === self.userId ? 'me' : 'partner',
+              text: c.text || '', doodleDataUrl: m.type === 'doodle' ? (c.doodleDataUrl || c.text) : null,
+              mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
+            });
+            added++;
+          }
+        }
+        if (added > 0) {
+          self.partnerMessages.sort(function(a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
+          if (self.partnerMessages.length > 500) self.partnerMessages.length = 500;
+        }
+      }
+      if (cb) cb(rows ? rows.length : 0);
+    });
   },
 
   // ========== Actions ==========

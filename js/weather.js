@@ -91,10 +91,26 @@ renderTimeline:function(){
     });
   });
   el.appendChild(card);
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom on first render; load more on scroll to top
+  if (!el._scrollHandlerAdded) {
+    el._scrollHandlerAdded = true;
+    el.addEventListener('scroll', function() {
+      if (el.scrollTop < 60 && !Sync._loadingMore) {
+        var oldH = el.scrollHeight;
+        Sync.loadMoreMessages(function(count) {
+          if (count > 0) {
+            Weather.renderTimeline();
+            requestAnimationFrame(function() {
+              el.scrollTop = el.scrollHeight - oldH;
+            });
+          }
+        });
+      }
+    });
+  }
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
-      el.scrollTop = el.scrollHeight;
+      if (!el._hasScrolled) { el.scrollTop = el.scrollHeight; el._hasScrolled = true; }
     });
   });
 },
