@@ -125,7 +125,8 @@ var Sync = {
     SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
       var foundPartner = null;
       if (members) {
-        for (var i = 0; i < members.length; i++) {
+        // Pick the LAST non-self member (most recently joined, likely the real partner)
+        for (var i = members.length - 1; i >= 0; i--) {
           if (members[i].user_id !== self.userId) {
             foundPartner = members[i].user_id;
             break;
