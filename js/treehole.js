@@ -36,7 +36,12 @@ _viewSharedDiary:function(i){
   var sds=[];
   try{sds=JSON.parse(localStorage.getItem('shared_diaries')||'[]')}catch(e){}
   var sd=sds[i];if(!sd)return;
-  if(!sd.read){sds[i].read=true;localStorage.setItem('shared_diaries',JSON.stringify(sds));this.renderSharedDiaries()}
+  if(!sd.read){
+    sds[i].read=true;localStorage.setItem('shared_diaries',JSON.stringify(sds));
+    this.renderSharedDiaries();
+    // Notify sharer that diary was read
+    if(typeof Sync!=='undefined'&&Sync.roomCode) Sync.sendDiaryRead(sd.id);
+  }
   var m=MOOD_CONFIG[sd.mood]||MOOD_CONFIG.sunny;
   var pn=localStorage.getItem('sync_partnerName')||'TA';
   var modal=document.createElement('div');modal.className='modal';modal.style.display='flex';
@@ -74,7 +79,7 @@ renderDiary:function(){
         if(!isExpanded){
           html+='<div style="font-size:13px;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(preview||'(空)')+'</div>';
           if(e.doodleDataUrl)html+='<span style="font-size:12px">🎨</span> ';
-          if(e.shared)html+='<span style="font-size:10px;color:var(--accent-green)">已分享</span>';
+          if(e.shared)html+='<span style="font-size:10px;color:'+(e.read?'var(--accent-green)':'var(--text-dim)')+'">'+(e.read?'✓ 已读':'已分享')+'</span>';
         }else{
           if(e.text)html+='<div style="font-size:14px;line-height:1.5;white-space:pre-wrap;margin-top:6px">'+escapeHtml(e.text)+'</div>';
           if(e.doodleDataUrl)html+='<div style="margin-top:6px"><img src="'+e.doodleDataUrl+'" style="max-width:120px;border-radius:8px;cursor:pointer" onclick="event.stopPropagation();TreeHole._showFull(\''+e.doodleDataUrl+'\')"></div>';

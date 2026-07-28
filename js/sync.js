@@ -293,6 +293,16 @@ var seen = false;
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
                 self.partnerMessages.push(msgObj);
+                // Handle diary read receipts
+                if (m.type === 'diary_read' && msgObj.sender === 'partner') {
+                  var did = c.diaryId;
+                  if (did) {
+                    var es = getEntries('me');
+                    for (var ei = 0; ei < es.length; ei++) {
+                      if (es[ei].id === did) { updateEntry(did, {shared:true, read:true}, 'me'); break; }
+                    }
+                  }
+                }
                 // Handle crane messages
                 if (m.type === 'crane' && msgObj.sender === 'partner') {
                   var act = c.action || 'add';
@@ -494,6 +504,15 @@ var seen = false;
     SUPABASE.post('messages', {
       room_id: this.roomId, sender_user_id: this.userId,
       type: 'crane', content: { action: 'add' },
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+
+  sendDiaryRead: function(diaryId) {
+    if (!this.roomId || !this.userId) return;
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'diary_read', content: { diaryId: diaryId },
       created_at: new Date().toISOString()
     }, function() {});
   },
