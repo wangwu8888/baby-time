@@ -80,19 +80,15 @@ var Crane = {
       (this._myCount > 0 ? '<button class="btn-text btn-danger" onclick="Crane.clearAll();event.stopPropagation()" style="font-size:11px">清空</button>' : '') +
       '</div></div></div></div>';
 
-    // Keyboard shortcut (remove old listener first to avoid duplicates)
-    if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
-    var self = this;
-    this._keyHandler = function(e) {
-      if (e.code === 'Space' && document.activeElement === document.body && Sync.partnerId) {
-        e.preventDefault(); self.addOne();
-      }
-    };
-    document.addEventListener('keydown', this._keyHandler);
+    // Keyboard shortcut removed to prevent rapid flooding
   },
 
+  _lastClick: 0,
   addOne: function() {
     if (!Sync.roomCode) return;
+    var now = Date.now();
+    if (now - this._lastClick < 5000) { showToast('慢慢来，5秒后再点哦 🕊️',1500); return; }
+    this._lastClick = now;
     var icon = this._pickIcon();
     this._myCount++;
     this._total = this._myCount + this._taCount;
