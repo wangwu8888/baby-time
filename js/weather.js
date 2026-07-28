@@ -55,7 +55,7 @@ renderTimeline:function(){
   var groups=groupByDate(items);
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';card.style.marginBottom='0';
-  card.innerHTML='<div class="card-title">💬 对话</div>';
+  card.innerHTML='<div class="card-title">💬 对话 <span style="font-size:11px;color:var(--text-dim);font-weight:400">('+items.length+'条)</span></div>';
 
   var self=this;
   Object.keys(groups).forEach(function(day){
