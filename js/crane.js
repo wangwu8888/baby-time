@@ -56,7 +56,7 @@ var Crane = {
     var showCount = Math.min(this._total, 40);
     for (var i = 0; i < showCount; i++) {
       var seed = (i * 137 + 53) % 100; // deterministic pseudo-random
-      var iconIdx = i % 4;
+      var iconIdx = i % this._icons.length;
       var icon = this._icons[iconIdx];
       items += '<span style="position:absolute;font-size:'+icon.size+'px;left:'+(4+(seed%88))+'%;top:'+(4+(i*7)%85)+'%;transform:rotate('+((seed-50)*0.6)+'deg);opacity:0.85;transition:all 0.3s;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1))">'+icon.emoji+'</span>';
     }
@@ -80,13 +80,15 @@ var Crane = {
       (this._myCount > 0 ? '<button class="btn-text btn-danger" onclick="Crane.clearAll();event.stopPropagation()" style="font-size:11px">清空</button>' : '') +
       '</div></div></div></div>';
 
-    // Keyboard shortcut
+    // Keyboard shortcut (remove old listener first to avoid duplicates)
+    if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
     var self = this;
-    document.addEventListener('keydown', function(e) {
+    this._keyHandler = function(e) {
       if (e.code === 'Space' && document.activeElement === document.body && Sync.partnerId) {
         e.preventDefault(); self.addOne();
       }
-    });
+    };
+    document.addEventListener('keydown', this._keyHandler);
   },
 
   addOne: function() {
