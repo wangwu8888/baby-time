@@ -3,7 +3,6 @@ var Care = {
   init: function() {
     this._trackOpen();
     this._checkLateNight();
-    this._checkLowMood();
     this._checkInactive();
   },
 
@@ -27,40 +26,6 @@ var Care = {
       if (last !== today) {
         localStorage.setItem('care_night_toast_date', today);
         showToast('这么晚了，记得照顾好自己 🌙', 4000);
-      }
-    }
-  },
-
-  // Check for consecutive low moods (rainy/storm for 3+ days)
-  _checkLowMood: function() {
-    var history = this._getMoodHistory();
-    var lowMoods = { rainy: true, storm: true };
-
-    // Check last 3 unique days - any 3 consecutive entries must be low
-    var days = this._getConsecutiveDays(history);
-    var streak = 0;
-    var today = new Date().toDateString();
-
-    for (var i = days.length - 1; i >= 0; i--) {
-      var d = days[i];
-      if (d.date === today) continue; // skip today (just set, could change)
-      if (lowMoods[d.status]) {
-        streak++;
-        if (streak >= 3) break;
-      } else {
-        streak = 0;
-      }
-    }
-
-    if (streak >= 3) {
-      var shown = localStorage.getItem('care_lowmood_shown');
-      if (shown === today) return; // only show once per day
-      localStorage.setItem('care_lowmood_shown', today);
-
-      var el = document.getElementById('care-banner');
-      if (el) {
-        var existing = el.innerHTML || '';
-        el.innerHTML = existing + '<div class="card" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);text-align:center;padding:14px 16px;border-radius:var(--radius);margin-bottom:10px;font-size:14px;color:#6d5dfc">💜 这几天好像不太开心，TA也在惦记着你呢</div>';
       }
     }
   },
