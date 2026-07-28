@@ -171,7 +171,7 @@ renderMemorial:function(){
   var self=this;
   el.innerHTML='';
   var card=document.createElement('div');card.className='card';
-  card.innerHTML='<div class="card-title">💝 我们的纪念墙</div>';
+  card.innerHTML='<div class="card-title">💓 我们的纪念墙</div>';
 
   // Anniversaries
   var annWrap=document.createElement('div');annWrap.style.marginBottom='12px';

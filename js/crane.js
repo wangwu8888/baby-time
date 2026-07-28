@@ -61,7 +61,7 @@ var Crane = {
 
     el.innerHTML =
       '<div style="background:linear-gradient(135deg,#fdf2f8,#f5f3ff,#ede9fe);border-radius:var(--radius);padding:14px 16px">' +
-      '<div class="card-title" style="margin-bottom:10px">💝 思念瓶</div>' +
+      '<div class="card-title" style="margin-bottom:10px">💓 思念瓶</div>' +
       '<div style="display:flex;align-items:center;gap:14px">' +
       // Glass jar
       '<div id="crane-jar" style="position:relative;width:100px;height:'+jarH+'px;background:linear-gradient(135deg,rgba(255,255,255,0.5),rgba(255,255,255,0.2));border:2px solid rgba(200,180,220,0.5);border-radius:16px 16px 20px 20px;overflow:hidden;flex-shrink:0;cursor:pointer;box-shadow:inset 0 2px 12px rgba(255,255,255,0.3),0 4px 16px rgba(180,160,200,0.2);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)" onclick="Crane.addOne()" title="点击添加思念">' +
@@ -74,7 +74,7 @@ var Crane = {
       '<div style="flex:1;display:flex;flex-direction:column;gap:8px">' +
       '<div style="font-size:13px;line-height:1.5;color:var(--text)">我 <b style="color:var(--accent-warm)">'+this._myCount+'</b> · TA <b style="color:var(--accent-blue)">'+this._taCount+'</b></div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="btn-primary" onclick="Crane.addOne();event.stopPropagation()" style="font-size:13px;padding:7px 16px;border-radius:20px;background:linear-gradient(135deg,#e8a0c0,#d4a0d4)">🪶 想你了</button>' +
+      '<button class="btn-primary" onclick="Crane.addOne();event.stopPropagation()" style="font-size:13px;padding:7px 16px;border-radius:20px;background:linear-gradient(135deg,#e8a0c0,#d4a0d4)">💌 想你了</button>' +
       (this._myCount > 0 ? '<button class="btn-text btn-danger" onclick="Crane.clearAll();event.stopPropagation()" style="font-size:11px">清空</button>' : '') +
       '</div></div></div></div>';
 
