@@ -292,7 +292,12 @@ var seen = false;
                   text: c.text || '', doodleDataUrl: m.type === 'doodle' ? (c.doodleDataUrl || c.text) : null,
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
-                self.partnerMessages.push(msgObj);
+                // Don't push system messages to chat timeline
+                if (m.type === 'crane' || m.type === 'diary_read' || m.type === 'shared_diary') {
+                  // Handle separately, don't add to chat messages
+                } else {
+                  self.partnerMessages.push(msgObj);
+                }
                 // Handle diary read receipts
                 if (m.type === 'diary_read' && msgObj.sender === 'partner') {
                   var did = c.diaryId;
