@@ -293,6 +293,12 @@ var seen = false;
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
                 self.partnerMessages.push(msgObj);
+                // Handle crane messages
+                if (m.type === 'crane' && msgObj.sender === 'partner') {
+                  var act = c.action || 'add';
+                  if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(); }
+                  else { if (typeof Crane !== 'undefined') Crane.onTaCrane(); }
+                }
                 // Store partner's shared diaries in localStorage for treehole
                 if (m.type === 'shared_diary' && msgObj.sender === 'partner') {
                   var sd = { id: m.id, text: c.text||'', doodleDataUrl: c.doodleDataUrl||null, mood: c.mood||'sunny', createdAt: m.created_at, read: false };
@@ -480,6 +486,26 @@ var seen = false;
         self.partnerMessages.push({id:newId,sender:'me',text:t||'',doodleDataUrl:dd||null,mood:mo||'sunny',type:'shared_diary',createdAt:msg.created_at});
       }
     });
+  },
+
+  sendCrane: function() {
+    var self = this;
+    if (!this.roomId || !this.userId) return;
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'crane', content: { action: 'add' },
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+
+  clearCranes: function() {
+    var self = this;
+    if (!this.roomId || !this.userId) return;
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'crane', content: { action: 'clear' },
+      created_at: new Date().toISOString()
+    }, function() {});
   },
 
   leave: function() {
