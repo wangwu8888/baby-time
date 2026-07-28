@@ -68,8 +68,13 @@ renderTimeline:function(){
         var pn=localStorage.getItem('sync_partnerName')||'TA';
         row.style.cssText='text-align:center;padding:4px 0;font-size:12px;color:var(--text-dim)';
         row.textContent=pn+' '+moodIcon+' 心情更新';
-      }else if(it.type==='shared_diary'||it.type==='crane'||it.type==='diary_read'){
-        return; // Not shown in chat timeline
+      }else if(it.type==='shared_diary'){
+        return; // Shown in treehole, not chat
+      }else if(it.type==='crane'){
+        // Show as subtle decorative line
+        var who=it.sender==='me'?'你':'TA';
+        row.style.cssText='text-align:center;padding:2px 0;font-size:11px;color:var(--text-dim)';
+        row.textContent='💌 '+who+' 送来一份思念';
       }else{
         var isPartner=it.sender!=='me';
         row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');
