@@ -125,32 +125,14 @@ var Sync = {
     SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
       var foundPartner = null;
       if (members) {
-        var others = [];
         for (var i = 0; i < members.length; i++) {
           if (members[i].user_id !== self.userId) {
-            others.push(members[i]);
+            foundPartner = members[i].user_id;
+            break;
           }
         }
-        if (others.length === 1) {
-          foundPartner = others[0].user_id;
-          self._finishLoadPartner(foundPartner, hadPartner, cb);
-        } else if (others.length > 1) {
-          // Multiple candidates — check who has recent mood (real active partner)
-          var uids = others.map(function(o){return 'user_id.eq.'+encodeURIComponent(o.user_id)}).join(',');
-          SUPABASE.get('moods', 'or=('+uids+')&order=updated_at.desc&limit=1', function(moodRows) {
-            if (moodRows && moodRows.length) {
-              foundPartner = moodRows[0].user_id;
-            } else {
-              // Fallback: sort by joined_at descending
-              others.sort(function(a, b) { return new Date(b.joined_at || 0) - new Date(a.joined_at || 0); });
-              foundPartner = others[0].user_id;
-            }
-            self._finishLoadPartner(foundPartner, hadPartner, cb);
-          });
-          return;
-        }
       }
-      self._finishLoadPartner(null, hadPartner, cb);
+      self._finishLoadPartner(foundPartner, hadPartner, cb);
     });
   },
 
@@ -291,7 +273,7 @@ var Sync = {
 
     // Poll messages
     if (this.roomId) {
-      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=30', function(rows) {
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=50', function(rows) {
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
