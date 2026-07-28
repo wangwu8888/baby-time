@@ -293,7 +293,7 @@ var seen = false;
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at
                 };
                 // Don't push system messages to chat timeline
-                if (m.type === 'crane' || m.type === 'diary_read' || m.type === 'shared_diary') {
+                if (m.type === 'crane') {
                   // Handle separately, don't add to chat messages
                 } else {
                   self.partnerMessages.push(msgObj);
@@ -419,7 +419,7 @@ var seen = false;
           for (var j = 0; j < self.partnerMessages.length; j++) {
             if (self.partnerMessages[j].id === m.id) { seen = true; break; }
           }
-          if (!seen) {
+          if (!seen && m.type !== 'crane') {
             var c = m.content;
             if (typeof c === 'string') { try { c = JSON.parse(c); } catch(e) { c = {}; } }
             self.partnerMessages.push({
