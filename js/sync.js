@@ -274,7 +274,7 @@ var Sync = {
 
     // Poll messages
     if (this.roomId) {
-      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=100', function(rows) {
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=200', function(rows) {
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
