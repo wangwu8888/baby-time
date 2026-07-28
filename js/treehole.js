@@ -1,8 +1,9 @@
-var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:false,_annOpen:true,_wishOpen:true,_sharedDiaryOpen:true,_expanded:{},init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
+var TreeHole={selectedMood:'sunny',pendingDoodle:null,_diaryOpen:false,_annOpen:false,_wishOpen:false,_sharedDiaryOpen:false,_expanded:{},_sharedMonths:{},init:function(){this.render()},pickStamp:function(m){this.selectedMood=m;var bs=document.querySelectorAll('#entry-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){bs[i].classList.toggle('selected',bs[i].getAttribute('data-mood')===m)}},
 
 render:function(){this.renderSharedDiaries();this.renderDiary()},
 
 _toggleSharedDiary:function(){this._sharedDiaryOpen=!this._sharedDiaryOpen;this.renderSharedDiaries()},
+_toggleSharedMonth:function(mk){this._sharedMonths[mk]=!this._sharedMonths[mk];this.renderSharedDiaries()},
 
 renderSharedDiaries:function(){
   var el=document.getElementById('shared-diary-section');if(!el)return;
@@ -17,14 +18,37 @@ renderSharedDiaries:function(){
   if(!sds.length){
     html+='<p class="empty-hint">还没有收到TA分享的日记</p>';
   }else{
-    sds.forEach(function(sd,i){
-      var m=MOOD_CONFIG[sd.mood]||MOOD_CONFIG.sunny;
-      var preview=sd.text||'';
-      if(preview.length>50)preview=preview.substring(0,50)+'…';
-      html+='<div class="card" style="border-left:3px solid '+m.accent+';cursor:pointer;position:relative" onclick="TreeHole._viewSharedDiary('+i+')"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:500">'+m.icon+' '+formatMonthDay(sd.createdAt)+'</span><span style="font-size:11px;color:var(--text-dim)">'+formatTime(sd.createdAt)+'</span></div>';
-      html+='<div style="font-size:14px;line-height:1.5;white-space:pre-wrap">'+escapeHtml(preview)+'</div>';
-      if(sd.doodleDataUrl)html+='<div style="margin-top:6px"><span style="font-size:18px">🎨 含涂鸦</span></div>';
-      html+='<div style="margin-top:4px;font-size:11px;color:'+(sd.read?'var(--accent-green)':'var(--accent-warm)')+'">'+(sd.read?'✓ 已读':'● 未读')+'</div>';
+    // Group by month
+    var months={};
+    sds.forEach(function(sd){
+      var d=new Date(sd.createdAt);
+      var key=d.getFullYear()+'年'+(d.getMonth()+1)+'月';
+      if(!months[key])months[key]=[];
+      months[key].push(sd);
+    });
+    var monthKeys=Object.keys(months).sort().reverse(); // newest first
+    monthKeys.forEach(function(mk){
+      var isOpen=!!self._sharedMonths[mk];
+      var monthUnread=0;
+      months[mk].forEach(function(sd){if(!sd.read)monthUnread++});
+      html+='<div style="margin-bottom:4px"><div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg-secondary);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500" onclick="TreeHole._toggleSharedMonth(\''+mk+'\')">';
+      html+='<span>'+(isOpen?'▼':'▶')+' '+mk+' ('+months[mk].length+'篇)'+(monthUnread>0?' <span style="display:inline-block;width:6px;height:6px;background:#F43F5E;border-radius:50%;vertical-align:middle"></span>':'')+'</span>';
+      html+='</div>';
+      if(isOpen){
+        html+='<div style="padding-left:4px">';
+        months[mk].forEach(function(sd){
+          var idx=sds.indexOf(sd);
+          var m=MOOD_CONFIG[sd.mood]||MOOD_CONFIG.sunny;
+          var preview=sd.text||'';
+          if(preview.length>40)preview=preview.substring(0,40)+'…';
+          html+='<div class="card" style="padding:10px 12px;margin-bottom:2px;border-left:3px solid '+m.accent+';cursor:pointer" onclick="TreeHole._viewSharedDiary('+idx+')"><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:13px;font-weight:500">'+m.icon+' '+formatMonthDay(sd.createdAt)+'</span><span style="font-size:11px;color:var(--text-dim)">'+formatTime(sd.createdAt)+'</span></div>';
+          html+='<div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(preview)+'</div>';
+          if(sd.doodleDataUrl)html+='<span style="font-size:14px">🎨</span> ';
+          html+='<span style="font-size:10px;color:'+(sd.read?'var(--accent-green)':'var(--accent-warm)')+'">'+(sd.read?'✓':'●')+'</span>';
+          html+='</div>';
+        });
+        html+='</div>';
+      }
       html+='</div>';
     });
   }
