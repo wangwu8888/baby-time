@@ -60,7 +60,18 @@ renderTimeline:function(){
   var self=this;
   Object.keys(groups).forEach(function(day){
     var dl=document.createElement('div');dl.style.cssText='text-align:center;padding:8px 0;font-size:11px;color:var(--text-dim)';dl.textContent=day;card.appendChild(dl);
-    groups[day].forEach(function(it){
+    // Merge consecutive crane messages into summary lines
+    var merged=[];
+    for(var gi=0;gi<groups[day].length;gi++){
+      var it=groups[day][gi];
+      if(it.type==='crane'){
+        var last=merged[merged.length-1];
+        if(last&&last._crane&&last.sender===it.sender){last._count++;continue}
+        it._crane=true;it._count=1;merged.push(it);continue;
+      }
+      merged.push(it);
+    }
+    merged.forEach(function(it){
       var moodIcon=MOOD_CONFIG[it.mood]?MOOD_CONFIG[it.mood].icon:'';
       var row=document.createElement('div');
       if(it.type==='mood_change'){
@@ -71,10 +82,10 @@ renderTimeline:function(){
       }else if(it.type==='shared_diary'){
         return; // Shown in treehole, not chat
       }else if(it.type==='crane'){
-        // Show as subtle decorative line
         var who=it.sender==='me'?'你':'TA';
+        var count=it._count||1;
         row.style.cssText='text-align:center;padding:2px 0;font-size:11px;color:var(--text-dim)';
-        row.textContent='💌 '+who+' 送来一份思念';
+        row.textContent='💌 '+who+' 送来 '+(count>1?count+' ':'')+'份思念';
       }else{
         var isPartner=it.sender!=='me';
         row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');
