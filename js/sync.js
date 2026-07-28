@@ -274,7 +274,7 @@ var Sync = {
 
     // Poll messages
     if (this.roomId) {
-      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=1000', function(rows) {
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=not.eq.crane&order=created_at.desc&limit=500', function(rows) {
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
@@ -292,9 +292,7 @@ var seen = false;
                   text: c.text || '', doodleDataUrl: m.type === 'doodle' ? (c.doodleDataUrl || c.text) : null,
                   mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at, batchCount: c.count || 1
                 };
-                // Crane messages stay out of chat entirely
-                if (m.type !== 'crane') self.partnerMessages.push(msgObj);
-                // Handle diary read receipts
+                self.partnerMessages.push(msgObj);// Handle diary read receipts
                 if (m.type === 'diary_read' && msgObj.sender === 'partner') {
                   var did = c.diaryId;
                   if (did) {
@@ -403,7 +401,7 @@ var seen = false;
       var d = this.partnerMessages[i].createdAt;
       if (!oldest || d < oldest) oldest = d;
     }
-    var query = 'room_id=eq.' + encodeURIComponent(this.roomId) + '&order=created_at.desc&limit=50';
+    var query = 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=not.eq.crane&order=created_at.desc&limit=50';
     if (oldest) query += '&created_at=lt.' + encodeURIComponent(oldest);
     SUPABASE.get('messages', query, function(rows) {
       self._loadingMore = false;
