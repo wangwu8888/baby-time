@@ -381,7 +381,7 @@ var seen = false;
     // Separate poll for crane sync (keep crane messages out of chat)
     if (this.roomId && this.partnerId) {
       var selfCrane = this;
-      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=eq.crane&order=created_at.desc&limit=10', function(rows) {
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=eq.crane&order=created_at.desc&limit=200', function(rows) {
         if (rows && rows.length) {
           for (var ci = rows.length - 1; ci >= 0; ci--) {
             var cm = rows[ci];
