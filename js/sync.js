@@ -274,7 +274,7 @@ var Sync = {
 
     // Poll messages
     if (this.roomId) {
-      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=not.eq.crane&order=created_at.desc&limit=500', function(rows) {
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=neq.crane&order=created_at.desc&limit=500', function(rows) {
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
@@ -401,7 +401,7 @@ var seen = false;
       var d = this.partnerMessages[i].createdAt;
       if (!oldest || d < oldest) oldest = d;
     }
-    var query = 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=not.eq.crane&order=created_at.desc&limit=50';
+    var query = 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=neq.crane&order=created_at.desc&limit=50';
     if (oldest) query += '&created_at=lt.' + encodeURIComponent(oldest);
     SUPABASE.get('messages', query, function(rows) {
       self._loadingMore = false;
