@@ -255,7 +255,7 @@ var Sync = {
     }
 
     var done = 0, changed = false;
-    function check() { done++; if (done >= 2) { self._polling = 0; if (changed && self.onChange) self.onChange('data'); } }
+    function check() { done++; if (done >= 3) { self._polling = 0; if (changed && self.onChange) self.onChange('data'); } }
 
     // Poll partner mood
     if (this.partnerId) {
@@ -275,6 +275,7 @@ var Sync = {
     // Poll messages
     if (this.roomId) {
       SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=neq.crane&order=created_at.desc&limit=500', function(rows) {
+        // Chat messages (excluding crane)
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
@@ -348,6 +349,25 @@ var seen = false;
         }
         // Wait for all decryptions to finish before notifying UI
         Promise.all(decryptPromises).then(function() { check(); });
+      });
+    } else { check(); }
+
+    // Separate poll for crane sync (keep crane messages out of chat)
+    if (this.roomId && this.partnerId) {
+      var selfCrane = this;
+      SUPABASE.get('messages', 'room_id=eq.' + encodeURIComponent(this.roomId) + '&type=eq.crane&order=created_at.desc&limit=10', function(rows) {
+        if (rows && rows.length) {
+          for (var ci = rows.length - 1; ci >= 0; ci--) {
+            var cm = rows[ci];
+            if (cm.sender_user_id !== selfCrane.userId) {
+              var cc = cm.content;
+              if (typeof cc === 'string') { try { cc = JSON.parse(cc); } catch(e) { cc = {}; } }
+              if (cc.action === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(); }
+              else { if (typeof Crane !== 'undefined') Crane.onTaCrane(cc.count || 1); }
+            }
+          }
+        }
+        check();
       });
     } else { check(); }
   },
