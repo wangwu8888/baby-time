@@ -125,11 +125,17 @@ var Sync = {
     SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
       var foundPartner = null;
       if (members) {
-        // Pick the LAST non-self member (most recently joined, likely the real partner)
-        for (var i = members.length - 1; i >= 0; i--) {
-          if (members[i].user_id !== self.userId) {
-            foundPartner = members[i].user_id;
-            break;
+        // Prefer previously known partner from localStorage
+        var knownId = localStorage.getItem('sync_partnerId');
+        if (knownId) {
+          for (var i = 0; i < members.length; i++) {
+            if (members[i].user_id === knownId) { foundPartner = knownId; break; }
+          }
+        }
+        // Fallback: pick last non-self member
+        if (!foundPartner) {
+          for (var j = members.length - 1; j >= 0; j--) {
+            if (members[j].user_id !== self.userId) { foundPartner = members[j].user_id; break; }
           }
         }
       }
