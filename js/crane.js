@@ -86,9 +86,6 @@ var Crane = {
   _lastClick: 0, _pendingSync: 0,
   addOne: function() {
     if (!Sync.roomCode) return;
-    var now = Date.now();
-    if (now - this._lastClick < 2000) { showToast('慢慢来哦 🕊️',1000); return; }
-    this._lastClick = now;
     var icon = this._pickIcon();
     this._myCount++;
     this._total = this._myCount + this._taCount;
