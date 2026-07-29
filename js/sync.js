@@ -324,6 +324,11 @@ var seen = false;
                     }
                   }
                 }
+                // Sync partner mood from mood_change messages (fallback for weather tab)
+                if (m.type === 'mood_change' && msgObj.sender === 'partner') {
+                  self.partnerMood = { status: c.mood || 'sunny', updatedAt: m.created_at };
+                  changed = true;
+                }
                 // Handle crane messages
                 if (m.type === 'crane' && msgObj.sender === 'partner') {
                   var act = c.action || 'add';
