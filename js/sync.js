@@ -327,8 +327,8 @@ var seen = false;
                 // Handle crane messages
                 if (m.type === 'crane' && msgObj.sender === 'partner') {
                   var act = c.action || 'add';
-                  if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(); }
-                  else { if (typeof Crane !== 'undefined') Crane.onTaCrane(c.count || 1); }
+                  if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(m.id); }
+                  else { if (typeof Crane !== 'undefined') Crane.onTaCrane(c.count || 1, m.id); }
                 }
                 // Store partner's shared diaries in localStorage for treehole
                 if (m.type === 'shared_diary' && msgObj.sender === 'partner') {
@@ -383,8 +383,8 @@ var seen = false;
             if (cm.sender_user_id !== selfCrane.userId) {
               var cc = cm.content;
               if (typeof cc === 'string') { try { cc = JSON.parse(cc); } catch(e) { cc = {}; } }
-              if (cc.action === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(); }
-              else { if (typeof Crane !== 'undefined') Crane.onTaCrane(cc.count || 1); }
+              if (cc.action === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(cm.id); }
+              else { if (typeof Crane !== 'undefined') Crane.onTaCrane(cc.count || 1, cm.id); }
             }
           }
         }

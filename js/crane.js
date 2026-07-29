@@ -3,6 +3,7 @@ var Crane = {
   _myCount: 0,
   _taCount: 0,
   _total: 0,
+  _seenCranes: {},
   _icons: [
     { emoji:'❤️', label:'红心', weight:20, size:30 },
     { emoji:'💖', label:'闪心', weight:20, size:28 },
@@ -118,8 +119,13 @@ var Crane = {
     Sync.clearCranes();
   },
 
-  onTaCrane: function(count) {
+  onTaCrane: function(count, msgId) {
     count = count || 1;
+    if (msgId && this._seenCranes[msgId]) return; // Already processed
+    if (msgId) this._seenCranes[msgId] = true;
+    // Limit stored IDs to prevent memory leak
+    var keys = Object.keys(this._seenCranes);
+    if (keys.length > 200) { for (var i = 0; i < 100; i++) delete this._seenCranes[keys[i]]; }
     this._taCount += count;
     this._total = this._myCount + this._taCount;
     this._saveCounts();
@@ -129,7 +135,9 @@ var Crane = {
     if (this._total === 99) this._milestone();
   },
 
-  onTaClear: function() {
+  onTaClear: function(msgId) {
+    if (msgId && this._seenCranes[msgId]) return;
+    if (msgId) this._seenCranes[msgId] = true;
     this._myCount = 0;
     this._taCount = 0;
     this._total = 0;
