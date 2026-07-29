@@ -102,9 +102,8 @@ var Crane = {
   },
   _flushCrane: function() {
     if (this._pendingSync <= 0) return;
-    var n = this._pendingSync;
     this._pendingSync = 0;
-    Sync.sendCraneBatch(n);
+    Sync.sendCraneBatch(this._myCount); // Send absolute total, not delta
   },
 
   clearAll: function() {
@@ -119,20 +118,21 @@ var Crane = {
     Sync.clearCranes();
   },
 
-  onTaCrane: function(count, msgId) {
-    count = count || 1;
-    if (msgId && this._seenCranes[msgId]) return; // Already processed
+  onTaCrane: function(total, msgId) {
+    total = parseInt(total) || 0;
+    if (msgId && this._seenCranes[msgId]) return;
     if (msgId) this._seenCranes[msgId] = true;
-    // Limit stored IDs to prevent memory leak
     var keys = Object.keys(this._seenCranes);
     if (keys.length > 200) { for (var i = 0; i < 100; i++) delete this._seenCranes[keys[i]]; }
-    this._taCount += count;
+    var prevTa = this._taCount;
+    this._taCount = total; // Set absolute count from partner
     this._total = this._myCount + this._taCount;
     this._saveCounts();
     this.render();
-    for (var i = 0; i < Math.min(count, 5); i++) { setTimeout((function(){this._flyIn(this._pickIcon())}).bind(this), i*200); }
-    showToast('💌 TA想你了', 2000);
-    if (this._total === 99) this._milestone();
+    var diff = Math.max(0, this._taCount - prevTa);
+    for (var i = 0; i < Math.min(diff, 5); i++) { setTimeout((function(){this._flyIn(this._pickIcon())}).bind(this), i*200); }
+    if (diff > 0) showToast('💌 TA想你了', 2000);
+    if (this._total >= 99 && prevTa + this._myCount < 99) this._milestone();
   },
 
   onTaClear: function(msgId) {
