@@ -100,16 +100,23 @@ var Sync = {
           if (members && members.length) {
             self._loadPartner(function() { self._finish(code); cb({ success: true }); });
           } else {
-            // New identity — might be re-joining after data clear
-            var isFreshIdentity = !localStorage.getItem('care_mood_history');
-            SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
-              SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 2 }, function() {});
-              self._loadPartner(function() {
-                self._finish(code);
-                if (isFreshIdentity) {
-                  setTimeout(function(){showToast('检测到新设备或数据已清除，旧消息归属可能不准 📱',4000)},500);
+            // New identity — clean up ALL stale members and start fresh
+            SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id), function(allMembers) {
+              if (allMembers && allMembers.length > 0) {
+                var cleaned = 0;
+                for (var k = 0; k < allMembers.length; k++) {
+                  SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(allMembers[k].user_id), function() {});
+                  cleaned++;
                 }
-                cb({ success: true });
+              }
+              // Now add self as the only member
+              SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
+                SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 1 }, function() {});
+                self._loadPartner(function() {
+                  self._finish(code);
+                  showToast('房间已重置，请让对方重新加入 📱', 4000);
+                  cb({ success: true });
+                });
               });
             });
           }
@@ -136,6 +143,14 @@ var Sync = {
         if (!foundPartner) {
           for (var j = members.length - 1; j >= 0; j--) {
             if (members[j].user_id !== self.userId) { foundPartner = members[j].user_id; break; }
+          }
+        }
+        // Clean up if more than 2 members (stale accounts)
+        if (members && members.length > 2) {
+          for (var i = 0; i < members.length; i++) {
+            if (members[i].user_id !== self.userId && members[i].user_id !== foundPartner) {
+              SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(self.roomId) + '&user_id=eq.' + encodeURIComponent(members[i].user_id), function(){});
+            }
           }
         }
       }
