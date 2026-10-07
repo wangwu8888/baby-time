@@ -166,70 +166,253 @@ _showFull:function(src){
 
 onDoodleSaved:function(d){Doodle.pendingDoodle=d;showToast('涂鸦已暂存，点击存入树洞保存')},
 
+// ==================== 纪念墙（v114 共享版）====================
+// 纪念日 + 愿望清单都是「双方共用一份」，本地存 localStorage，变更通过
+// Sync.sendWish / Sync.sendAnniversary 广播；对端在 _poll 里调用
+// applyRemoteWish / applyRemoteAnniversary 落到自己的副本。不做已读/提醒。
+
+_annKey:function(){return 'anniversaries_shared'},
+_wishKey:function(){return 'wishes_shared'},
+_myTag:function(){return '我'},
+_taTag:function(){return (typeof Sync!=='undefined'&&Sync.partnerName)?Sync.partnerName:'TA'},
+
+// 读取本地列表（带迁移 + 去重）
+_getAnns:function(){
+  if(!localStorage.getItem('anns_migrated')){
+    try{var old=JSON.parse(localStorage.getItem('anniversaries')||'[]');if(old.length)localStorage.setItem(this._annKey(),JSON.stringify(old));}catch(e){}
+    localStorage.setItem('anns_migrated','1');
+  }
+  try{return JSON.parse(localStorage.getItem(this._annKey())||'[]')}catch(e){return[]}
+},
+_getWishes:function(){
+  if(!localStorage.getItem('wishes_migrated')){
+    try{var old=JSON.parse(localStorage.getItem('wishes')||'[]');if(old.length)localStorage.setItem(this._wishKey(),JSON.stringify(old));}catch(e){}
+    localStorage.setItem('wishes_migrated','1');
+  }
+  try{return JSON.parse(localStorage.getItem(this._wishKey())||'[]')}catch(e){return[]}
+},
+_setAnns:function(a){try{localStorage.setItem(this._annKey(),JSON.stringify(a))}catch(e){}},
+_setWishes:function(w){try{localStorage.setItem(this._wishKey(),JSON.stringify(w))}catch(e){}},
+
+// ---------- 纪念日 ----------
+_addAnniversary:function(){
+  var n=document.getElementById('ann-name'),d=document.getElementById('ann-date'),em=document.getElementById('ann-emoji');
+  var name=n?n.value.trim():'',date=d?d.value:'';
+  if(!name){showToast('给这个日子起个名字吧');return}
+  if(!date){showToast('选一下日期');return}
+  var emoji=em&&em.value.trim()?em.value.trim():'💗';
+  var id=generateId();
+  var rec={id:id,name:name,emoji:emoji,date:date,author:'me',createdAt:new Date().toISOString()};
+  var anns=this._getAnns();anns.push(rec);
+  anns.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
+  this._setAnns(anns);
+  if(typeof Sync!=='undefined'&&Sync.roomId&&Sync.partnerId)Sync.sendAnniversary('add',id,name,emoji,date);
+  if(n)n.value='';if(d)d.value='';if(em)em.value='';
+  this.renderMemorial();showToast('已添加纪念日 🎉');
+},
+_delAnniversary:function(id){
+  if(!confirm('删除这个纪念日？双方都会看不到'))return;
+  var anns=this._getAnns(),out=[],found=false;
+  for(var i=0;i<anns.length;i++){if(String(anns[i].id)===String(id)){found=true;continue}out.push(anns[i])}
+  this._setAnns(out);
+  if(found&&typeof Sync!=='undefined'&&Sync.roomId&&Sync.partnerId)Sync.sendAnniversary('del',id);
+  this.renderMemorial();showToast('已删除');
+},
+applyRemoteAnniversary:function(c,senderId){
+  if(!c)return;
+  var anns=this._getAnns();
+  if(c.action==='add'&&c.aid){
+    for(var i=0;i<anns.length;i++){if(String(anns[i].id)===String(c.aid))return}
+    anns.push({id:c.aid,name:c.name||'',emoji:c.emoji||'💗',date:c.date||'',author:senderId||'ta',createdAt:new Date().toISOString()});
+    anns.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
+    this._setAnns(anns);this.renderMemorial();
+  }else if(c.action==='del'&&c.aid){
+    var out=[],hit=false;
+    for(var j=0;j<anns.length;j++){if(String(anns[j].id)===String(c.aid)){hit=true;continue}out.push(anns[j])}
+    if(hit){this._setAnns(out);this.renderMemorial()}
+  }
+},
+
+// ---------- 愿望清单 ----------
+_migrateWishAuthors:function(){
+  var w=this._getWishes(),changed=false;
+  for(var i=0;i<w.length;i++){if(!w[i].author){w[i].author='me';changed=true}}
+  if(changed)this._setWishes(w);
+},
+addWish:function(text){
+  text=(text||'').trim();
+  if(!text){showToast('写下你们想一起做的事');return}
+  var id=generateId();
+  var rec={id:id,text:text,done:false,author:'me',createdAt:new Date().toISOString()};
+  var w=this._getWishes();w.push(rec);this._setWishes(w);
+  if(typeof Sync!=='undefined'&&Sync.roomId&&Sync.partnerId)Sync.sendWish('add',id,text,false);
+  this.renderMemorial();showToast('已加入愿望清单 ✨');
+},
+toggleWish:function(id){
+  var w=this._getWishes(),hit=false,done=false;
+  for(var i=0;i<w.length;i++){if(String(w[i].id)===String(id)){w[i].done=!w[i].done;done=w[i].done;hit=true;break}}
+  if(!hit)return;
+  this._setWishes(w);
+  if(typeof Sync!=='undefined'&&Sync.roomId&&Sync.partnerId)Sync.sendWish('toggle',id,null,done);
+  this.renderMemorial();
+},
+delWish:function(id){
+  if(!confirm('删除这条愿望？双方都会看不到'))return;
+  var w=this._getWishes(),out=[],hit=false;
+  for(var i=0;i<w.length;i++){if(String(w[i].id)===String(id)){hit=true;continue}out.push(w[i])}
+  if(!hit)return;
+  this._setWishes(out);
+  if(typeof Sync!=='undefined'&&Sync.roomId&&Sync.partnerId)Sync.sendWish('del',id);
+  this.renderMemorial();showToast('已删除');
+},
+applyRemoteWish:function(c,senderId){
+  if(!c)return;
+  var w=this._getWishes();
+  if(c.action==='add'&&c.wid){
+    for(var i=0;i<w.length;i++){if(String(w[i].id)===String(c.wid))return}
+    w.push({id:c.wid,text:c.text||'',done:!!c.done,author:senderId||'ta',createdAt:new Date().toISOString()});
+    this._setWishes(w);this.renderMemorial();
+  }else if(c.action==='toggle'&&c.wid){
+    var hit=false;
+    for(var j=0;j<w.length;j++){if(String(w[j].id)===String(c.wid)){w[j].done=!!c.done;hit=true;break}}
+    if(hit){this._setWishes(w);this.renderMemorial()}
+  }else if(c.action==='del'&&c.wid){
+    var out=[],found=false;
+    for(var k=0;k<w.length;k++){if(String(w[k].id)===String(c.wid)){found=true;continue}out.push(w[k])}
+    if(found){this._setWishes(out);this.renderMemorial()}
+  }
+},
+
 renderMemorial:function(){
   var el=document.getElementById('memorial-section');if(!el)return;
-  if(typeof Sync==='undefined'||!Sync.partnerId){el.innerHTML='';return}
-  var self=this;
   el.innerHTML='';
+  var self=this;
+  var paired=(typeof Sync!=='undefined'&&Sync.partnerId);
+  this._migrateWishAuthors();
+  var el2=el;
+  el2.innerHTML='';
+
   var card=document.createElement('div');card.className='card';
   card.innerHTML='<div class="card-title">💓 我们的纪念墙</div>';
+  if(!paired){
+    var hint=document.createElement('p');hint.className='empty-hint';
+    hint.textContent='配对之后，这里的东西TA也能看到、也能一起加';
+    card.appendChild(hint);
+  }
 
-  // Anniversaries
-  var annWrap=document.createElement('div');annWrap.style.marginBottom='12px';
-  var annHeader=document.createElement('div');annHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
-  annHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._annOpen?'▼':'▶')+' 纪念日</span><button class="btn-text">+ 添加</button>';
-  annHeader.querySelector('button').addEventListener('click',function(e){e.stopPropagation();self._addAnniversary()});
+  // ===== 纪念日 =====
+  var annWrap=document.createElement('div');annWrap.style.marginBottom='14px';
+  var annHeader=document.createElement('div');
+  annHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
+  annHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._annOpen?'▼':'▶')+' 纪念日</span><span class="btn-text" style="font-size:12px">'+(this._annOpen?'收起':'展开')+'</span>';
   annHeader.addEventListener('click',function(){self._annOpen=!self._annOpen;self.renderMemorial()});
   annWrap.appendChild(annHeader);
+
   if(this._annOpen){
-    var annList=document.createElement('div');annList.style.cssText='display:flex;gap:10px;overflow-x:auto;padding-bottom:4px';
-    var anns=JSON.parse(localStorage.getItem('anniversaries')||'[]');
-    anns.forEach(function(a,i){
-      var days=Math.floor((new Date()-new Date(a.date))/86400000);
-      var item=document.createElement('div');item.style.cssText='min-width:120px;background:var(--bg);border-radius:12px;padding:12px;text-align:center;flex-shrink:0';
-      item.innerHTML='<div style="font-size:24px">'+a.emoji+'</div><div style="font-size:13px;font-weight:500;margin:4px 0">'+escapeHtml(a.name)+'</div><div style="font-size:11px;color:var(--text-dim)">第 '+days+' 天</div><div style="font-size:10px;color:var(--text-dim)">'+a.date+'</div><button class="btn-text btn-danger" style="font-size:10px;margin-top:4px">删除</button>';
-      item.querySelector('button').addEventListener('click',function(){self._delAnniversary(i)});
-      annList.appendChild(item);
-    });
-    annWrap.appendChild(annList);
+    var anns=this._getAnns();
+    // 添加表单
+    var form=document.createElement('div');
+    form.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px';
+    var ico=document.createElement('input');ico.id='ann-emoji';ico.type='text';ico.value='💗';ico.maxLength=4;
+    ico.style.cssText='width:42px;text-align:center;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px';
+    var nm=document.createElement('input');nm.id='ann-name';nm.type='text';nm.placeholder='纪念日名称（如 在一起）';nm.maxLength=20;
+    nm.style.cssText='flex:1;min-width:110px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px';
+    var dt=document.createElement('input');dt.id='ann-date';dt.type='date';
+    dt.style.cssText='padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px';
+    var addBtn=document.createElement('button');addBtn.className='btn-primary';addBtn.textContent='添加';addBtn.style.cssText='padding:6px 14px;font-size:13px';
+    addBtn.addEventListener('click',function(){self._addAnniversary()});
+    form.appendChild(ico);form.appendChild(nm);form.appendChild(dt);form.appendChild(addBtn);
+    annWrap.appendChild(form);
+
+    if(!anns.length){
+      var em=document.createElement('p');em.className='empty-hint';em.textContent='还没有纪念日，加上第一个吧';
+      annWrap.appendChild(em);
+    }else{
+      var annList=document.createElement('div');annList.style.cssText='display:flex;gap:10px;overflow-x:auto;padding-bottom:4px';
+      anns.forEach(function(a){
+        var target=new Date(a.date+'T00:00:00');
+        var now=new Date();now.setHours(0,0,0,0);
+        var daysDiff=Math.floor((now-target)/86400000);
+        // 已过：第N天；未到：倒计时
+        var mainLine,subLine;
+        if(daysDiff>=0){mainLine='第 '+(daysDiff+1)+' 天';subLine=a.date}
+        else{mainLine='还有 '+(-daysDiff)+' 天';subLine=a.date}
+        // C6: 若有下一年周期，显示距下次周年
+        var nextAnn='';
+        if(daysDiff>=0){
+          var nd=new Date(target);nd.setFullYear(target.getFullYear());
+          while(nd<=now)nd.setFullYear(nd.getFullYear()+1);
+          nextAnn=Math.ceil((nd-now)/86400000);
+        }
+        var item=document.createElement('div');
+        item.style.cssText='min-width:118px;background:var(--bg);border-radius:12px;padding:10px;text-align:center;flex-shrink:0;position:relative';
+        var authorTag=a.author==='me'?'我':self._taTag();
+        item.innerHTML='<div style="font-size:24px">'+escapeHtml(a.emoji||'💗')+'</div>'+
+          '<div style="font-size:13px;font-weight:500;margin:4px 0">'+escapeHtml(a.name||'')+'</div>'+
+          '<div style="font-size:13px;font-weight:600;color:var(--accent-warm,#F59E0B)">'+mainLine+'</div>'+
+          (nextAnn?'<div style="font-size:10px;color:var(--text-dim);margin-top:1px">距周年 '+nextAnn+' 天</div>':'')+
+          '<div style="font-size:10px;color:var(--text-dim);margin-top:2px">'+escapeHtml(subLine)+'</div>'+
+          '<div style="font-size:9px;color:var(--text-dim);margin-top:2px">'+escapeHtml(authorTag)+'加的</div>'+
+          '<button class="btn-text btn-danger" style="font-size:10px;margin-top:4px">删除</button>';
+        item.querySelector('button').addEventListener('click',function(){self._delAnniversary(a.id)});
+        annList.appendChild(item);
+      });
+      annWrap.appendChild(annList);
+    }
   }
   card.appendChild(annWrap);
 
-  // Wishes
+  // ===== 愿望清单（共享）=====
   var wishWrap=document.createElement('div');
-  var wishHeader=document.createElement('div');wishHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
-  wishHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._wishOpen?'▼':'▶')+' 愿望清单</span><button class="btn-text">+ 添加</button>';
-  wishHeader.querySelector('button').addEventListener('click',function(e){e.stopPropagation();self._addWish()});
+  var wishHeader=document.createElement('div');
+  wishHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
+  var wishes=this._getWishes();
+  var doneCount=0;for(var wi=0;wi<wishes.length;wi++){if(wishes[wi].done)doneCount++}
+  wishHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._wishOpen?'▼':'▶')+' 一起想做的事'+(wishes.length?' <span style="font-weight:400;font-size:11px;color:var(--text-dim)">'+doneCount+'/'+wishes.length+'</span>':'')+'</span><span class="btn-text" style="font-size:12px">'+(this._wishOpen?'收起':'展开')+'</span>';
   wishHeader.addEventListener('click',function(){self._wishOpen=!self._wishOpen;self.renderMemorial()});
   wishWrap.appendChild(wishHeader);
+
   if(this._wishOpen){
-    var wishList=document.createElement('div');
-    var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');
-    wishes.forEach(function(w,i){
-      var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)';
-      row.innerHTML='<span style="cursor:pointer;font-size:18px">'+(w.done?'☑':'☐')+'</span><span style="flex:1;font-size:14px;text-decoration:'+(w.done?'line-through':'none')+';color:'+(w.done?'var(--text-dim)':'var(--text)')+'">'+escapeHtml(w.text)+'</span><button class="btn-text btn-danger" style="font-size:10px">删除</button>';
-      row.querySelector('span').addEventListener('click',function(){self._toggleWish(i)});
-      row.querySelector('button').addEventListener('click',function(){self._delWish(i)});
-      wishList.appendChild(row);
-    });
-    wishWrap.appendChild(wishList);
+    // 输入行
+    var irow=document.createElement('div');
+    irow.style.cssText='display:flex;gap:6px;margin-bottom:10px';
+    var win=document.createElement('input');win.id='wish-input';win.type='text';win.maxLength=40;
+    win.placeholder='想一起做的事…（如 去看一次海）';
+    win.style.cssText='flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px';
+    var wbtn=document.createElement('button');wbtn.className='btn-primary';wbtn.textContent='加入';wbtn.style.cssText='padding:6px 14px;font-size:13px';
+    function submitWish(){var inp=document.getElementById('wish-input');if(inp){self.addWish(inp.value)}}
+    wbtn.addEventListener('click',submitWish);
+    win.addEventListener('keydown',function(e){if(e.key==='Enter')submitWish()});
+    irow.appendChild(win);irow.appendChild(wbtn);
+    wishWrap.appendChild(irow);
+
+    if(!wishes.length){
+      var wem=document.createElement('p');wem.className='empty-hint';wem.textContent='还没有愿望，写下你们想一起做的事吧';
+      wishWrap.appendChild(wem);
+    }else{
+      var wishList=document.createElement('div');
+      wishes.forEach(function(w){
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)';
+        var authorTag=w.author==='me'?'我':self._taTag();
+        var authorColor=w.author==='me'?'var(--text-dim)':'var(--accent-warm,#F59E0B)';
+        var box=document.createElement('span');box.style.cssText='cursor:pointer;font-size:18px';box.textContent=w.done?'☑':'☐';
+        box.addEventListener('click',function(){self.toggleWish(w.id)});
+        var tx=document.createElement('span');
+        tx.style.cssText='flex:1;font-size:14px;text-decoration:'+(w.done?'line-through':'none')+';color:'+(w.done?'var(--text-dim)':'var(--text)');
+        tx.textContent=w.text;
+        var tag=document.createElement('span');tag.style.cssText='font-size:10px;color:'+authorColor+';flex-shrink:0';tag.textContent=authorTag;
+        var del=document.createElement('button');del.className='btn-text btn-danger';del.style.fontSize='10px';del.textContent='删除';
+        del.addEventListener('click',function(){self.delWish(w.id)});
+        row.appendChild(box);row.appendChild(tx);row.appendChild(tag);row.appendChild(del);
+        wishList.appendChild(row);
+      });
+      wishWrap.appendChild(wishList);
+    }
   }
   card.appendChild(wishWrap);
   el.appendChild(card);
 },
-
-_addAnniversary:function(){
-  var name=prompt('纪念日名称：');if(!name||!name.trim())return;
-  var emoji=prompt('表情符号：','💗');if(!emoji)return;
-  var date=prompt('日期（如 2026-01-01）：');if(!date)return;
-  var anns=JSON.parse(localStorage.getItem('anniversaries')||'[]');
-  anns.push({name:name.trim(),emoji:emoji,date:date});anns.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
-  localStorage.setItem('anniversaries',JSON.stringify(anns));this.renderMemorial();
-},
-_delAnniversary:function(i){var anns=JSON.parse(localStorage.getItem('anniversaries')||'[]');anns.splice(i,1);localStorage.setItem('anniversaries',JSON.stringify(anns));this.renderMemorial()},
-_addWish:function(){var t=prompt('愿望：');if(!t||!t.trim())return;var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');wishes.push({text:t.trim(),done:false});localStorage.setItem('wishes',JSON.stringify(wishes));this.renderMemorial()},
-_toggleWish:function(i){var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');if(wishes[i]){wishes[i].done=!wishes[i].done;localStorage.setItem('wishes',JSON.stringify(wishes));this.renderMemorial()}},
-_delWish:function(i){var wishes=JSON.parse(localStorage.getItem('wishes')||'[]');wishes.splice(i,1);localStorage.setItem('wishes',JSON.stringify(wishes));this.renderMemorial()},
 
 renderEntries:function(){this.renderDiary()},
 refresh:function(){this.render();this.renderMemorial()}

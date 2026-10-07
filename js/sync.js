@@ -19,6 +19,8 @@ var Sync = {
     if (uid) {
       this.userId = uid;
       localStorage.setItem('sync_userId', uid);
+      // 阶段2：把客户端身份挂到匿名登录的 auth.uid()（幂等，RLS 靠它认人）
+      SUPABASE.AUTH.link(uid, function() {});
       SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
         if (!rows || !rows.length) {
           var nick = localStorage.getItem('sync_partnerName') || '我';
@@ -34,6 +36,8 @@ var Sync = {
       this.userId = uid;
       localStorage.setItem('user_id', uid);
       localStorage.setItem('sync_userId', uid);
+      // 阶段2：新身份也要挂到映射表（此时匿名 token 已由请求闸门确保就绪）
+      SUPABASE.AUTH.link(uid, function() {});
       SUPABASE.post('users', { user_id: uid, nickname: '' }, function() { cb(); });
     }
   },
@@ -56,70 +60,116 @@ var Sync = {
   },
 
   // Create a new room (always fresh random code)
+  // v115: 走 create_room RPC（服务端建房间 + 写成员 + 记 member_count）。
+  // 匿名登录不可用（legacy）时退回旧直连路径。
   createRoom: function(password, cb) {
     var self = this;
     this._initUser(function() {
       // Switching to a brand-new room: fully leave the old one (removes old membership)
       if (self.roomId) self.leave(false);
 
-      var code = self._generateRoomCode();
-      var pwdHash = self._hashCode(code + password);
-      self.roomCode = code;
-      SUPABASE.post('rooms', {
-        room_code: code, password_hash: pwdHash,
-        creator_user_id: self.userId, member_count: 1
-      }, function(newRoom) {
-        if (newRoom && newRoom.length) {
-          self.roomId = newRoom[0].id;
-          self._switchRoom(self.roomId);
-          SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
+      if (SUPABASE.AUTH.isLegacy()) { self._createRoomLegacy(password, cb); return; }
+      var attempts = 0;
+      function tryOnce() {
+        attempts++;
+        var code = self._generateRoomCode();
+        var pwdHash = self._hashCode(code + password);
+        self.roomCode = code;
+        SUPABASE.rpc('create_room', { p_code: code, p_pwd_hash: pwdHash }, function(room, err) {
+          if (room && room.id) {
+            self.roomId = room.id;
+            self._switchRoom(self.roomId);
             self._finish(code);
             self._startPolling();
             cb({ roomCode: code });
-          });
-        } else {
-          cb({ error: '创建失败，请重试' });
-        }
-      });
+          } else if (err && err.indexOf('CODE_TAKEN') !== -1 && attempts < 3) {
+            tryOnce(); // 房间号撞了，换个号重来
+          } else {
+            cb({ error: '创建失败，请重试' });
+          }
+        });
+      }
+      tryOnce();
+    });
+  },
+
+  // 旧直连路径（仅 legacy 模式 / RLS 开启前可用）
+  _createRoomLegacy: function(password, cb) {
+    var self = this;
+    var code = self._generateRoomCode();
+    var pwdHash = self._hashCode(code + password);
+    self.roomCode = code;
+    SUPABASE.post('rooms', {
+      room_code: code, password_hash: pwdHash,
+      creator_user_id: self.userId, member_count: 1
+    }, function(newRoom) {
+      if (newRoom && newRoom.length) {
+        self.roomId = newRoom[0].id;
+        self._switchRoom(self.roomId);
+        SUPABASE.post('room_members', { room_id: self.roomId, user_id: self.userId }, function() {
+          self._finish(code);
+          self._startPolling();
+          cb({ roomCode: code });
+        });
+      } else {
+        cb({ error: '创建失败，请重试' });
+      }
     });
   },
 
   // Join existing room
+  // v115: 走 join_room RPC（服务端验密码 + 补成员 + 原子加 member_count）。
   joinRoom: function(code, password, cb) {
     var self = this;
     code = code.toUpperCase();
     this.roomCode = code;
     this._initUser(function() {
-      SUPABASE.get('rooms', 'room_code=eq.' + encodeURIComponent(code) + '&limit=1', function(rows) {
-        if (!rows || !rows.length) { cb({ error: '房间不存在' }); return; }
-        var room = rows[0];
-        var pwdHash = self._hashCode(code + password);
-        if (room.password_hash !== pwdHash) { cb({ error: '密码错误' }); return; }
-        self.roomId = room.id;
-        self._switchRoom(self.roomId);
-        SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(self.userId), function(members) {
-          if (members && members.length) {
-            // Already a member (normal rejoin) — just re-pair, never touch other members
-            self._loadPartner(function() { self._finish(code); cb({ success: true }); });
-          } else {
-            // Not a member yet (first join, or membership lost) — add self QUIETLY.
-            // v113 fix: NEVER delete other members here. The old logic wiped everyone
-            // else in the room, which kicked the partner on every exit+rejoin cycle
-            // and left the UI stuck in "unpaired" state.
-            SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function(added) {
-              if (!added || !added.length) { cb({ error: '加入失败，请检查网络后重试' }); return; }
-              SUPABASE.get('rooms', 'id=eq.' + encodeURIComponent(room.id) + '&select=member_count&limit=1', function(rr) {
-                var mc = (rr && rr.length && parseInt(rr[0].member_count)) || 0;
-                if (mc < 1) mc = 1;
-                SUPABASE.patch('rooms', 'id=eq.' + encodeURIComponent(room.id), { member_count: mc + 1 }, function() {});
-                self._loadPartner(function() {
-                  self._finish(code);
-                  cb({ success: true });
-                });
+      if (SUPABASE.AUTH.isLegacy()) { self._joinRoomLegacy(code, password, cb); return; }
+      SUPABASE.rpc('join_room', { p_code: code, p_pwd_hash: self._hashCode(code + password) }, function(room, err) {
+        if (room && room.id) {
+          self.roomId = room.id;
+          self._switchRoom(self.roomId);
+          self._loadPartner(function() { self._finish(code); cb({ success: true }); });
+        } else if (err) {
+          if (err.indexOf('ROOM_NOT_FOUND') !== -1) cb({ error: '房间不存在' });
+          else if (err.indexOf('BAD_PASSWORD') !== -1) cb({ error: '密码错误' });
+          else cb({ error: '加入失败，请检查网络后重试' });
+        } else {
+          cb({ error: '加入失败，请检查网络后重试' });
+        }
+      });
+    });
+  },
+
+  // 旧直连路径（仅 legacy 模式 / RLS 开启前可用）
+  _joinRoomLegacy: function(code, password, cb) {
+    var self = this;
+    SUPABASE.get('rooms', 'room_code=eq.' + encodeURIComponent(code) + '&limit=1', function(rows) {
+      if (!rows || !rows.length) { cb({ error: '房间不存在' }); return; }
+      var room = rows[0];
+      var pwdHash = self._hashCode(code + password);
+      if (room.password_hash !== pwdHash) { cb({ error: '密码错误' }); return; }
+      self.roomId = room.id;
+      self._switchRoom(self.roomId);
+      SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(self.userId), function(members) {
+        if (members && members.length) {
+          // Already a member (normal rejoin) — just re-pair, never touch other members
+          self._loadPartner(function() { self._finish(code); cb({ success: true }); });
+        } else {
+          // Not a member yet (first join, or membership lost) — add self QUIETLY.
+          SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function(added) {
+            if (!added || !added.length) { cb({ error: '加入失败，请检查网络后重试' }); return; }
+            SUPABASE.get('rooms', 'id=eq.' + encodeURIComponent(room.id) + '&select=member_count&limit=1', function(rr) {
+              var mc = (rr && rr.length && parseInt(rr[0].member_count)) || 0;
+              if (mc < 1) mc = 1;
+              SUPABASE.patch('rooms', 'id=eq.' + encodeURIComponent(room.id), { member_count: mc + 1 }, function() {});
+              self._loadPartner(function() {
+                self._finish(code);
+                cb({ success: true });
               });
             });
-          }
-        });
+          });
+        }
       });
     });
   },
@@ -335,6 +385,14 @@ var seen = false;
                   var act = c.action || 'add';
                   if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(m.id); }
                   else { if (typeof Crane !== 'undefined') Crane.onTaCrane(c.count || 1, m.id); }
+                }
+                // Shared wish list — apply partner's add/toggle/del to our copy (v114)
+                if (m.type === 'wish' && msgObj.sender === 'partner') {
+                  if (typeof TreeHole !== 'undefined') TreeHole.applyRemoteWish(c, m.sender_user_id);
+                }
+                // Shared anniversaries — apply partner's add/del (v114)
+                if (m.type === 'anniversary' && msgObj.sender === 'partner') {
+                  if (typeof TreeHole !== 'undefined') TreeHole.applyRemoteAnniversary(c, m.sender_user_id);
                 }
                 // Store partner's shared diaries in localStorage for treehole.
                 // v113: capture per-iteration values in a closure (var-loop bug) and
@@ -588,6 +646,36 @@ var seen = false;
     SUPABASE.post('messages', {
       room_id: this.roomId, sender_user_id: this.userId,
       type: 'crane', content: { action: 'clear' },
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+
+  // ========== Shared wish list (v114) ==========
+  // One shared list both people read/write. Every entry carries a stable id
+  // generated by whoever created it, so both sides operate on the SAME record
+  // and a checkbox ticked by one shows up ticked for the other.
+  // action: 'add' | 'toggle' | 'del'
+  sendWish: function(action, id, text, done) {
+    if (!this.roomId || !this.userId) return;
+    var c = { action: action, wid: id };
+    if (action === 'add') { c.text = text || ''; c.done = !!done; }
+    if (action === 'toggle') { c.done = !!done; }
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'wish', content: c,
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+
+  // ========== Shared anniversaries (v114) ==========
+  // action: 'add' | 'del'
+  sendAnniversary: function(action, id, name, emoji, date) {
+    if (!this.roomId || !this.userId) return;
+    var c = { action: action, aid: id };
+    if (action === 'add') { c.name = name || ''; c.emoji = emoji || '💗'; c.date = date || ''; }
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'anniversary', content: c,
       created_at: new Date().toISOString()
     }, function() {});
   },
