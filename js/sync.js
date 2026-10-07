@@ -1,6 +1,7 @@
 // Sync v8 — new tables (users, rooms, messages, moods)
-// Encryption: disabled for stability. Set to true to re-enable.
-var ENCRYPTION_ENABLED = false;
+// Encryption: AES-GCM for message text, key derived from room code.
+// v113: re-enabled — old plaintext messages are handled per-message via content.encrypted flag.
+var ENCRYPTION_ENABLED = true;
 var Sync = {
   userId: null, roomId: null, roomCode: null, _partnerSince: null,
   myId: 1,  // compatibility: truthy for old doJoin() check
@@ -58,8 +59,8 @@ var Sync = {
   createRoom: function(password, cb) {
     var self = this;
     this._initUser(function() {
-      // Leave any existing room first
-      if (self.roomId) self.leave();
+      // Switching to a brand-new room: fully leave the old one (removes old membership)
+      if (self.roomId) self.leave(false);
 
       var code = self._generateRoomCode();
       var pwdHash = self._hashCode(code + password);
@@ -98,23 +99,21 @@ var Sync = {
         self._switchRoom(self.roomId);
         SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(self.userId), function(members) {
           if (members && members.length) {
+            // Already a member (normal rejoin) — just re-pair, never touch other members
             self._loadPartner(function() { self._finish(code); cb({ success: true }); });
           } else {
-            // New identity — clean up ALL stale members and start fresh
-            SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(room.id), function(allMembers) {
-              if (allMembers && allMembers.length > 0) {
-                var cleaned = 0;
-                for (var k = 0; k < allMembers.length; k++) {
-                  SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(room.id) + '&user_id=eq.' + encodeURIComponent(allMembers[k].user_id), function() {});
-                  cleaned++;
-                }
-              }
-              // Now add self as the only member
-              SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function() {
-                SUPABASE.patch('rooms', 'id=eq.' + room.id, { member_count: 1 }, function() {});
+            // Not a member yet (first join, or membership lost) — add self QUIETLY.
+            // v113 fix: NEVER delete other members here. The old logic wiped everyone
+            // else in the room, which kicked the partner on every exit+rejoin cycle
+            // and left the UI stuck in "unpaired" state.
+            SUPABASE.post('room_members', { room_id: room.id, user_id: self.userId }, function(added) {
+              if (!added || !added.length) { cb({ error: '加入失败，请检查网络后重试' }); return; }
+              SUPABASE.get('rooms', 'id=eq.' + encodeURIComponent(room.id) + '&select=member_count&limit=1', function(rr) {
+                var mc = (rr && rr.length && parseInt(rr[0].member_count)) || 0;
+                if (mc < 1) mc = 1;
+                SUPABASE.patch('rooms', 'id=eq.' + encodeURIComponent(room.id), { member_count: mc + 1 }, function() {});
                 self._loadPartner(function() {
                   self._finish(code);
-                  showToast('房间已重置，请让对方重新加入 📱', 4000);
                   cb({ success: true });
                 });
               });
@@ -285,9 +284,11 @@ var Sync = {
           var pm = { status: rows[0].status, updatedAt: rows[0].updated_at };
           if (!self.partnerMood || self.partnerMood.updatedAt !== rows[0].updated_at) {
             self.partnerMood = pm; changed = true;
-            // Record partner mood for weekly report
-            if (typeof Care !== 'undefined') Care.recordTaMood(pm.status);
           }
+          // v113: record partner mood on every successful poll (not only on change),
+          // so the weekly report has data for every day. Care.recordTaMood dedupes
+          // per-day internally and skips redundant writes.
+          if (typeof Care !== 'undefined') Care.recordTaMood(pm.status);
         }
         check();
       });
@@ -335,22 +336,37 @@ var seen = false;
                   if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(m.id); }
                   else { if (typeof Crane !== 'undefined') Crane.onTaCrane(c.count || 1, m.id); }
                 }
-                // Store partner's shared diaries in localStorage for treehole
+                // Store partner's shared diaries in localStorage for treehole.
+                // v113: capture per-iteration values in a closure (var-loop bug) and
+                // decrypt BEFORE storing, so encrypted diaries don't land as ciphertext.
                 if (m.type === 'shared_diary' && msgObj.sender === 'partner') {
-                  var sd = { id: m.id, text: c.text||'', doodleDataUrl: c.doodleDataUrl||null, mood: c.mood||'sunny', createdAt: m.created_at, read: false };
-                  try {
-                    var sds = JSON.parse(localStorage.getItem('shared_diaries') || '[]');
-                    // Avoid duplicates
-                    var dup = false;
-                    for (var di = 0; di < sds.length; di++) { if (sds[di].id === m.id) { dup = true; break; } }
-                    if (!dup) { sds.unshift(sd); if (sds.length > 50) sds.length = 50; localStorage.setItem('shared_diaries', JSON.stringify(sds)); }
-                  } catch(e) {}
+                  (function(mm, cc) {
+                    var sd = { id: mm.id, diaryId: cc.diaryId || null, text: cc.text||'', doodleDataUrl: cc.doodleDataUrl||null, mood: cc.mood||'sunny', createdAt: mm.created_at, read: false };
+                    var storeSd = function(plain) {
+                      if (typeof plain === 'string') sd.text = plain;
+                      try {
+                        var sds = JSON.parse(localStorage.getItem('shared_diaries') || '[]');
+                        var dup = false;
+                        for (var di = 0; di < sds.length; di++) { if (sds[di].id === mm.id) { dup = true; break; } }
+                        if (!dup) { sds.unshift(sd); if (sds.length > 50) sds.length = 50; localStorage.setItem('shared_diaries', JSON.stringify(sds)); }
+                      } catch(e) {}
+                    };
+                    if (cc.encrypted && typeof Crypto !== 'undefined' && Crypto._ready) {
+                      Crypto.decrypt(cc.text).then(storeSd).catch(function(){ storeSd(null); });
+                    } else {
+                      storeSd(null);
+                    }
+                  })(m, c);
                 }
-                // Decrypt if needed — wait for all decrypts before notifying UI
+                // Decrypt if needed — wait for all decrypts before notifying UI.
+                // v113: capture c/msgObj per-iteration; a shared var across the loop
+                // made multiple encrypted messages in one batch overwrite each other.
                 if (c.encrypted && typeof Crypto !== 'undefined' && Crypto._ready) {
-                  decryptPromises.push(
-                    Crypto.decrypt(c.text).then(function(plain) { msgObj.text = plain; })
-                  );
+                  (function(cc, mObj) {
+                    decryptPromises.push(
+                      Crypto.decrypt(cc.text).then(function(plain) { mObj.text = plain; })
+                    );
+                  })(c, msgObj);
                 }
                 nc++;
               }
@@ -517,29 +533,33 @@ var seen = false;
         };
         SUPABASE.post('messages', msg, function(result) {
           var newId = result && result.length ? result[0].id : null;
-          if (newId) {
-            self.partnerMessages.push({id:newId,sender:'me',text:t||'',doodleDataUrl:dd||null,mood:mo||'sunny',type:dd?'doodle':'text',createdAt:msg.created_at});
-          }
+          if (!newId) { resolve({ error: '发送失败，请检查网络后重试' }); return; }
+          self.partnerMessages.push({id:newId,sender:'me',text:t||'',doodleDataUrl:dd||null,mood:mo||'sunny',type:dd?'doodle':'text',createdAt:msg.created_at});
           resolve({ success: true, id: newId });
         });
       });
     });
   },
 
-  sendSharedDiary: function(t, dd, mo) {
+  sendSharedDiary: function(t, dd, mo, diaryId) {
     var self = this;
     if (!this.roomId || !this.userId) return;
-    var msg = {
-      room_id: self.roomId, sender_user_id: self.userId,
-      type: 'shared_diary',
-      content: { text: t || '', doodleDataUrl: dd || null, mood: mo || 'sunny' },
-      created_at: new Date().toISOString()
-    };
-    SUPABASE.post('messages', msg, function(result) {
-      var newId = result && result.length ? result[0].id : null;
-      if (newId) {
-        self.partnerMessages.push({id:newId,sender:'me',text:t||'',doodleDataUrl:dd||null,mood:mo||'sunny',type:'shared_diary',createdAt:msg.created_at});
-      }
+    var useEncryption = ENCRYPTION_ENABLED && typeof Crypto !== 'undefined' && Crypto._ready;
+    var textPromise = useEncryption ? Crypto.encrypt(t || '') : Promise.resolve(t || '');
+    var self2 = this;
+    textPromise.then(function(encText) {
+      var msg = {
+        room_id: self2.roomId, sender_user_id: self2.userId,
+        type: 'shared_diary',
+        content: { text: encText, doodleDataUrl: dd || null, mood: mo || 'sunny', diaryId: diaryId || null, encrypted: useEncryption },
+        created_at: new Date().toISOString()
+      };
+      SUPABASE.post('messages', msg, function(result) {
+        var newId = result && result.length ? result[0].id : null;
+        if (newId) {
+          self2.partnerMessages.push({id:newId,sender:'me',text:t||'',doodleDataUrl:dd||null,mood:mo||'sunny',type:'shared_diary',createdAt:msg.created_at});
+        }
+      });
     });
   },
 
@@ -572,29 +592,30 @@ var seen = false;
     }, function() {});
   },
 
-  leave: function() {
-    if (this.timer) clearInterval(this.timer);
+  // leave(keepMembership)
+  //  - keepMembership=true (default): exit only clears LOCAL state. The room and your
+  //    membership stay intact, so "退出房间 → 重新加入" just works and your partner
+  //    is never disturbed. This is the normal path for the exit button.
+  //  - keepMembership=false: also remove your membership row (used when switching to
+  //    a brand-new room via createRoom).
+  // v113 fix: the old version deleted your member row on every exit, which made the
+  // next join look like a "new identity" and (in v112) nuked the whole room.
+  // It also deleted the entire room when localStorage had a stale 'my_invite_code' —
+  // that dead code path is gone now.
+  leave: function(keepMembership) {
+    if (keepMembership === undefined) keepMembership = true;
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
     var rid = this.roomId;
     var uid = this.userId;
-    if (rid && uid) {
-      // Remove self from members
-      SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(rid) + '&user_id=eq.' + encodeURIComponent(uid), function() {
-        // If I'm the creator (room_code = my invite_code), delete the room entirely
-        var myCode = localStorage.getItem('my_invite_code');
-        if (myCode) {
-          SUPABASE.delete('rooms', 'room_code=eq.' + encodeURIComponent(myCode), function() {});
-        } else {
-          // Just decrement member count
-          SUPABASE.patch('rooms', 'id=eq.' + rid, { member_count: 1 }, function() {});
-        }
-      });
+    if (rid && uid && !keepMembership) {
+      SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(rid) + '&user_id=eq.' + encodeURIComponent(uid), function() {});
     }
     localStorage.removeItem('sync_roomCode');
     localStorage.removeItem('sync_roomId');
     localStorage.removeItem('sync_partnerId');
-    localStorage.removeItem('sync_partnerName');
-    localStorage.removeItem('sync_partnerName_custom');
     localStorage.removeItem('room_password');
+    // Keep sync_partnerName / sync_partnerName_custom — the nickname you set for TA
+    // should survive an exit, otherwise every rejoin resets it to 'TA'.
     this.roomCode = null; this.roomId = null; this.partnerId = null; this.partnerName = null;
     this.partnerMood = null; this.myMood = null;
   }

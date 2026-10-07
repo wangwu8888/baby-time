@@ -94,18 +94,18 @@ var Weekly = {
     html += '<div style="font-size:12px;color:var(--text-dim)">一周心情回顾</div>';
     html += '</div>';
 
-    // ===== Emotion curve (7-day line) =====
+    // ===== 7-day mood calendar =====
+    // v113: renamed from 情绪曲线 — dots were laid out by flex order, not by mood
+    // value (the old moodOrder/mePos/taPos math was computed then never used).
+    // Now the removed dead code is gone and the title matches what you see.
     html += '<div class="card" style="margin:0 16px 12px">';
-    html += '<div class="card-title">📈 情绪曲线</div>';
+    html += '<div class="card-title">📅 心情日历</div>';
     html += '<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:8px 0;min-height:100px">';
 
-    var moodOrder = { sunny: 5, cloudy: 4, love: 4, rainy: 2, storm: 1, dnd: 3 };
     var moodEmoji = { sunny: '☀️', cloudy: '☁️', rainy: '🌧️', storm: '⛈️', love: '❤️', dnd: '🔕' };
 
     for (var i = 0; i < data.days.length; i++) {
       var day = data.days[i];
-      var mePos = day.me ? (moodOrder[day.me] || 3) * 16 : 0;
-      var taPos = day.ta ? (moodOrder[day.ta] || 3) * 16 : 0;
 
       html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:36px">';
       // Partner dot (top)

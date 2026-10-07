@@ -153,7 +153,8 @@ _toggleShare:function(id){
   if(e){updateEntry(id,{shared:!e.shared},'me');this.renderDiary();
     if(!e.shared&&Sync.roomCode){
       // Send as shared_diary — partner sees a preview card, not the full content inline
-      Sync.sendSharedDiary(e.text||'',e.doodleDataUrl||null,e.mood);
+      // v113: pass the local diary id so the read receipt can match it back on our side
+      Sync.sendSharedDiary(e.text||'',e.doodleDataUrl||null,e.mood,e.id);
       showToast('已分享给TA 📖')
     }else{showToast('已取消分享')}}
 },

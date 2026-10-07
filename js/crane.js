@@ -13,6 +13,7 @@ var Crane = {
   ],
 
   init: function() {
+    if (!this._flushBound) { this._bindFlush(); this._flushBound = true; }
     if (!Sync.partnerId) { this._hide(); return; }
     this._loadCounts();
     this.render();
@@ -88,6 +89,7 @@ var Crane = {
   addOne: function() {
     if (!Sync.roomCode) return;
     var icon = this._pickIcon();
+    var before = this._total;
     this._myCount++;
     this._total = this._myCount + this._taCount;
     this._pendingSync++;
@@ -98,7 +100,8 @@ var Crane = {
     var self = this;
     if (this._pendingSync >= 10) { this._flushCrane(); }
     else { clearTimeout(this._syncTimer); this._syncTimer = setTimeout(function(){self._flushCrane()},15000); }
-    if (this._total === 99) this._milestone();
+    // v113: crossing check — strict ===99 could be jumped over (e.g. 98 → 100)
+    if (before < 99 && this._total >= 99) this._milestone();
   },
   _flushCrane: function() {
     if (this._pendingSync <= 0) return;
@@ -116,6 +119,15 @@ var Crane = {
     this.render();
     this._flyOut(total);
     Sync.clearCranes();
+  },
+
+  // v113: flush pending crane clicks when the page is hidden/closed,
+  // so a burst of 1-9 clicks right before switching apps is never lost.
+  _bindFlush: function() {
+    var self = this;
+    var flush = function() { if (self._pendingSync > 0) self._flushCrane(); };
+    document.addEventListener('visibilitychange', function() { if (document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
   },
 
   onTaCrane: function(total, msgId) {

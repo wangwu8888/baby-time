@@ -13,19 +13,14 @@ var Care = {
   },
 
   // Late-night gentle reminder (0-5am)
+  // v113: banner only — the toast is already covered by Weather._checkGreeting,
+  // showing both back-to-back felt like a glitch.
   _checkLateNight: function() {
     var h = new Date().getHours();
     if (h >= 0 && h < 5) {
       var el = document.getElementById('care-banner');
-      if (el) {
+      if (el && !el.innerHTML) {
         el.innerHTML = '<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:#e8d5b7;text-align:center;padding:14px 16px;border-radius:var(--radius);margin-bottom:10px;font-size:14px">🌙 这么晚了还没睡呀，记得照顾好自己</div>';
-      }
-      // Also show toast on first visit today
-      var today = new Date().toDateString();
-      var last = localStorage.getItem('care_night_toast_date');
-      if (last !== today) {
-        localStorage.setItem('care_night_toast_date', today);
-        showToast('这么晚了，记得照顾好自己 🌙', 4000);
       }
     }
   },
@@ -71,11 +66,18 @@ var Care = {
   },
 
   // Record partner's mood for weekly report
+  // v113: called on every poll now — skip the write when today's status is unchanged,
+  // otherwise we'd hammer localStorage every 1.5 seconds.
   recordTaMood: function(status) {
     var history = this._getTaMoodHistory();
     var today = new Date().toDateString();
     for (var i = history.length - 1; i >= 0; i--) {
-      if (history[i].date === today) { history[i].status = status; try { localStorage.setItem('care_ta_mood_history', JSON.stringify(history)); } catch(e) {} return; }
+      if (history[i].date === today) {
+        if (history[i].status === status) return;
+        history[i].status = status;
+        try { localStorage.setItem('care_ta_mood_history', JSON.stringify(history)); } catch(e) {}
+        return;
+      }
     }
     history.push({ status: status, date: today });
     if (history.length > 30) history = history.slice(-30);

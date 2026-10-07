@@ -17,8 +17,18 @@ var MOOD_CONFIG={sunny:{icon:'☀️',label:'晴朗',accent:'#F59E0B'},cloudy:{i
 function getMyCode(){var c=localStorage.getItem('my_pair_code');if(!c){c='';var ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';for(var i=0;i<6;i++)c+=ch[Math.floor(Math.random()*ch.length)];localStorage.setItem('my_pair_code',c)}return c}
 function copyMyCode(){var c=getMyCode();if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var el=document.getElementById('copy-hint');if(el){el.style.display='block';setTimeout(function(){el.style.display='none'},1500)}}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}}
 function editPartnerName(){var c=localStorage.getItem('sync_partnerName')||'TA';var n=prompt('输入TA的称呼：',c);if(n&&n.trim()){var nn=n.trim();localStorage.setItem('sync_partnerName',nn);localStorage.setItem('sync_partnerName_custom','1');if(typeof Sync!=='undefined')Sync.partnerName=nn;if(typeof Weather!=='undefined')Weather.refresh();if(typeof TreeHole!=='undefined')TreeHole.refresh();showToast('已更新为：'+nn,1500)}}
-function leaveAndReset(){if(confirm('确定退出房间吗？')){if(typeof Sync!=='undefined')Sync.leave();localStorage.removeItem('sync_partnerName');localStorage.removeItem('room_password');if(typeof App!=='undefined'){App._paired=false;App._updatePairUI()}if(typeof Weather!=='undefined')Weather.refresh();showToast('已退出房间',2000)}}
-function clearAllData(){if(confirm('确定清除本地数据吗？')){localStorage.clear();location.reload()}}
+function leaveAndReset(){if(confirm('确定退出房间吗？')){if(typeof Sync!=='undefined')Sync.leave();localStorage.removeItem('room_password');if(typeof App!=='undefined'){App._paired=false;App._updatePairUI()}if(typeof Weather!=='undefined')Weather.refresh();showToast('已退出房间',2000)}}
+// v113: 清除本地数据时保留身份与配对信息——旧版 localStorage.clear() 会连 user_id 一起删掉，
+// 导致重进时被当成"新身份"，把房间重置、对方被踢。文案承诺的只是"删除记录、涂鸦和设置"。
+function clearAllData(){
+  if(!confirm('确定清除本地记录、日记和涂鸦吗？（不会退出房间，连接保持不变）'))return;
+  var keep=['user_id','sync_userId','sync_roomCode','sync_roomId','sync_partnerId','sync_partnerName','sync_partnerName_custom','my_pair_code'];
+  var saved={};
+  for(var i=0;i<keep.length;i++){var v=localStorage.getItem(keep[i]);if(v!==null)saved[keep[i]]=v}
+  localStorage.clear();
+  for(var k in saved){localStorage.setItem(k,saved[k])}
+  location.reload();
+}
 function pickMood(s){var c=MOOD_CONFIG[s]||MOOD_CONFIG.sunny;var d={status:s,updatedAt:new Date().toISOString(),message:''};try{localStorage.setItem('moodState_me',JSON.stringify(d))}catch(e){}if(typeof Sync!=='undefined')Sync.updateMood(s);if(typeof Care!=='undefined')Care.recordMood(s);var colors={sunny:'#FFF8E1',cloudy:'#F1F5F9',rainy:'#EFF6FF',storm:'#F5F3FF',love:'#FFF1F2',dnd:'#FAFAF8'};document.body.style.background=colors[s]||'#FFF7ED';var ie=document.getElementById('mood3d-icon');var le=document.getElementById('mood3d-label');if(ie)ie.textContent=c.icon;if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){if(os[i].getAttribute('data-mood')===s)os[i].classList.add('selected');else os[i].classList.remove('selected')}if(navigator.vibrate)navigator.vibrate(8);showToast('已更新 '+c.icon,1500)}
 function pickSendMood(m){if(typeof Send!=='undefined')Send.sendMood=m;var bs=document.querySelectorAll('#send-mood-select .mood-stamp-btn');for(var i=0;i<bs.length;i++){if(bs[i].getAttribute('data-mood')===m)bs[i].classList.add('selected');else bs[i].classList.remove('selected')}}
 
@@ -70,10 +80,15 @@ function copyRoomCode(){
 }
 
 var _waitingTimer = null;
+// v113: 新房间密码强度——至少 8 位，拒绝常见弱密码（如 1111/6666/123456）。
+// 加入房间仍只要求非空，避免把已有 4 位密码的老房间挡在门外。
+var WEAK_PASSWORDS=['11111111','12345678','123456789','88888888','66666666','00000000','12341234','11223344','147258369','1234567890','0000000000','qwertyuiop','asdfghjkl;'];
+function isWeakPassword(p){return WEAK_PASSWORDS.indexOf(p)!==-1||/^(.)\1{7,}$/.test(p)||/^12345(6789*)?$/.test(p)||/^0?123450/.test(p)}
 function doCreateRoom(){
   if(typeof Sync!=='undefined'&&Sync.roomCode){showToast('请先退出当前房间',2000);return}
   var pwd=document.getElementById('create-password').value.trim();
-  if(pwd.length<4){document.getElementById('create-error').textContent='密码至少4位';return}
+  if(pwd.length<8){document.getElementById('create-error').textContent='密码至少 8 位（现在是你们的私密空间，别用太弱的密码）';return}
+  if(isWeakPassword(pwd)){document.getElementById('create-error').textContent='这个密码太常见了，换一个更私密的吧';return}
   var btn=document.querySelector('#pairing-create .btn-primary');if(btn){btn.disabled=true;btn.textContent='创建中…'}
   document.getElementById('create-error').textContent='';
   if(typeof Sync!=='undefined') Sync.createRoom(pwd, function(result){
