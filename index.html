@@ -71,7 +71,7 @@
 <div class="card setting-item" id="setting-room" style="display:none"><div class="setting-info"><div class="setting-label">房间号</div><div class="setting-desc" id="setting-room-code"></div></div><button class="btn-text btn-danger" onclick="leaveAndReset()">退出房间</button></div>
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">清除本地数据</div><div class="setting-desc">删除本地记录、涂鸦和设置</div></div><button class="btn-text btn-danger" onclick="clearAllData()">清除</button></div>
 </div>
-<p class="version-info">心情气象台 v113</p>
+<p class="version-info">心情气象台 v114</p>
 </div>
 
 <nav class="tab-bar">
@@ -82,28 +82,9 @@
 </nav>
 </div>
 
-<div id="send-overlay" class="overlay hidden">
-<div class="send-header"><button class="btn-icon" onclick="Send.close()">✕</button><span class="send-title">投递给TA</span></div>
-<div class="send-options">
-<div class="send-option-card" onclick="Send.openText()"><span class="send-opt-icon">✏️</span><span class="send-opt-label">写文字</span></div>
-<div class="send-option-card" onclick="Send.openDoodle()"><span class="send-opt-icon">🎨</span><span class="send-opt-label">画涂鸦</span></div>
-</div>
-<div id="send-text-panel" class="hidden">
-<textarea id="send-text-input" class="send-textarea" placeholder="想说什么..." rows="4"></textarea>
-<div class="send-mood-row"><span class="send-mood-label">此刻心情：</span><div class="send-mood-select" id="send-mood-select">
-<div class="mood-stamp-btn selected" data-mood="sunny" onclick="pickSendMood('sunny')">☀️</div>
-<div class="mood-stamp-btn" data-mood="cloudy" onclick="pickSendMood('cloudy')">☁️</div>
-<div class="mood-stamp-btn" data-mood="rainy" onclick="pickSendMood('rainy')">🌧️</div>
-<div class="mood-stamp-btn" data-mood="storm" onclick="pickSendMood('storm')">⛈️</div>
-<div class="mood-stamp-btn" data-mood="love" onclick="pickSendMood('love')">❤️</div>
-<div class="mood-stamp-btn" data-mood="dnd" onclick="pickSendMood('dnd')">🔕</div>
-</div></div>
-<div class="send-actions"><label class="send-save-label"><input type="checkbox" id="send-save-treehole"> 同时存入树洞</label><button class="btn-primary" onclick="Send.doSendText()">发送</button></div>
-</div>
-</div>
-
+<!-- v114: 移除 #send-overlay（投递给TA）——旧的独立入口，功能已由对话页输入栏与涂鸦面板覆盖 -->
 <div id="doodle-overlay" class="overlay hidden">
-<div class="doodle-toolbar"><button class="btn-icon" onclick="Doodle.close(false)">✕</button><span class="doodle-title">情绪涂鸦</span><button class="btn-primary" style="display:none" id="btn-doodle-send" onclick="Doodle.close(true)">发送给TA</button><button class="btn-icon" id="btn-doodle-save" onclick="Doodle.close(true)">✓</button></div>
+<div class="doodle-toolbar"><button class="btn-icon" onclick="Doodle.close(false)">✕</button><span class="doodle-title">情绪涂鸦</span><button class="btn-icon" id="btn-doodle-save" onclick="Doodle.close(true)">✓</button></div>
 <div class="doodle-colors" id="doodle-colors">
 <button class="color-btn active" data-color="#E57373" style="background:#E57373"></button>
 <button class="color-btn" data-color="#FFB74D" style="background:#FFB74D"></button>
@@ -166,18 +147,18 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="js/utils.js?v=113"></script>
-<script src="js/storage.js?v=113"></script>
-<script src="js/supabase.js?v=113"></script>
-<script src="js/crypto.js?v=113"></script>
-<script src="js/sync.js?v=113"></script>
-<script src="js/weather.js?v=113"></script>
-<script src="js/treehole.js?v=113"></script>
-<script src="js/doodle.js?v=113"></script>
-<script src="js/send.js?v=113"></script>
-<script src="js/care.js?v=113"></script>
-<script src="js/crane.js?v=113"></script>
-<script src="js/weekly.js?v=113"></script>
-<script src="js/app.js?v=113"></script>
+<script src="js/utils.js?v=114"></script>
+<script src="js/qrdecode.js?v=114"></script>
+<script src="js/storage.js?v=114"></script>
+<script src="js/supabase.js?v=114"></script>
+<script src="js/crypto.js?v=114"></script>
+<script src="js/sync.js?v=114"></script>
+<script src="js/weather.js?v=114"></script>
+<script src="js/treehole.js?v=114"></script>
+<script src="js/doodle.js?v=114"></script>
+<script src="js/care.js?v=114"></script>
+<script src="js/crane.js?v=114"></script>
+<script src="js/weekly.js?v=114"></script>
+<script src="js/app.js?v=114"></script>
 </body>
 </html>
