@@ -74,11 +74,12 @@ var SUPABASE = {
           self2._exp = Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600000);
           self2._uid = (data.user && data.user.id) || self2._uid;
           self2._save();
-          // 立刻把已有 user_id（老设备升级场景）挂到身份映射表
+          // 立刻把已有 user_id（老设备升级场景）挂到身份映射表，
+          // 写完（无论成败）才放行后续请求，避免 join_room 跑在映射前
           var uid = null;
           try { uid = localStorage.getItem('user_id'); } catch (e) {}
-          if (uid) self2.link(uid, function() {});
-          finish(null);
+          if (uid) self2.link(uid, function() { finish(null); });
+          else finish(null);
         } else {
           finish('auth failed: ' + status + ' ' + JSON.stringify(data).slice(0, 120));
         }
@@ -89,8 +90,8 @@ var SUPABASE = {
         if (this._tk && this._exp - Date.now() > 60000) {
           var uid0 = null;
           try { uid0 = localStorage.getItem('user_id'); } catch (e) {}
-          if (uid0) this.link(uid0, function() {});
-          finish(null);
+          if (uid0) this.link(uid0, function() { finish(null); });
+          else finish(null);
         } else {
           this.refresh(function(ok) { if (ok) finish(null); else self2._signup(afterToken); });
         }
@@ -125,13 +126,20 @@ var SUPABASE = {
 
     // 把客户端 user_id（localStorage 里的老身份）挂到 auth.uid() 上。
     // RLS 的 current_client_uid() 靠这张表认人。幂等，可反复调用。
+    // v116 修复：必须用登录后的 access_token 做 Bearer（不能用 anon key，
+    // 否则 RLS 策略 to authenticated 不放行，映射永远写不进去 → 加入失败）。
     link: function(clientUid, cb) {
-      if (!this._uid || !clientUid) { cb && cb(false); return; }
-      this._rawReq('POST', SUPABASE.URL + '/rest/v1/auth_links',
-        JSON.stringify({ auth_id: this._uid, user_id: clientUid }), function(status) {
-          // 200/201 = 新建；409 = 已存在（正常）；其他 = 失败但不阻塞
-          cb && cb(status === 200 || status === 201 || status === 409);
-        });
+      if (!this._uid || !clientUid || !this._tk) { cb && cb(false); return; }
+      var self = this;
+      var x = new XMLHttpRequest();
+      x.open('POST', SUPABASE.URL + '/rest/v1/auth_links', true);
+      x.timeout = 8000;
+      var h = { 'apikey': SUPABASE.KEY, 'Authorization': 'Bearer ' + this._tk, 'Content-Type': 'application/json' };
+      Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
+      x.onload = function() { cb && cb(x.status === 200 || x.status === 201 || x.status === 409); };
+      x.onerror = function() { cb && cb(false); };
+      x.ontimeout = function() { cb && cb(false); };
+      x.send(JSON.stringify({ auth_id: this._uid, user_id: clientUid }));
     },
 
     token: function() { return this._legacy ? SUPABASE.KEY : this._tk; },
@@ -208,7 +216,8 @@ var SUPABASE = {
           var data = null;
           try { data = x.responseText ? JSON.parse(x.responseText) : null; } catch (e) { data = null; }
           cb(data, null);
-        } else if (retry < 2) {
+        } else if (retry < 2 && (x.status >= 500 || x.status === 429)) {
+          // 只对服务端错误/限流重试；4xx（如密码错误、房间不存在）立即返回
           setTimeout(function() { self._req(method, url, body, cb, retry + 1, authRetry, isRpc); }, 1500);
         } else {
           var msg = null;
