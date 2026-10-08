@@ -1,248 +1,194 @@
-// 思念瓶 — longing bottle with random keepsakes
+// ==================== 想你了（v122：即时信号，不是计数器） ====================
+// 旧版「思念瓶」是积累型设计：玻璃罐 + 一堆心 + 「我 0 · TA 1」的计数，具象又笨重。
+// v122 推翻重做 —— 它是一句「我想你了」，不是账本：
+//   我按下按钮 → TA 手机上 1~2 秒内浮出一颗缓慢跳动的心（+ 轻震一次 + 一行小字）。
+//
+// 通道仍是 messages 表 type='crane'（早就上了 RLS），不新增表、不用跑 SQL。
+// 内容协议：{ action: 'ping' | 'reply', at: ISO }
+//   ping  = 我想你了    → TA 看到心跳浮层 + 「我也想你了」按钮
+//   reply = 我也想你了  → 我这边只再跳一次心（不再弹按钮，否则会无限来回）
+//
+// 关于「实时」：这个项目没有 WebSocket，用的是 1.5 秒一次的轮询，
+// 所以信号会在 1~2 秒内到达，不是科技意义上的毫秒级，但用起来就是「立刻」。
 var Crane = {
-  _myCount: 0,
-  _taCount: 0,
-  _total: 0,
-  _seenCranes: {},
-  _icons: [
-    { emoji:'❤️', label:'红心', weight:20, size:30 },
-    { emoji:'💖', label:'闪心', weight:20, size:28 },
-    { emoji:'💕', label:'双心', weight:20, size:26 },
-    { emoji:'✨', label:'星光', weight:20, size:24 },
-    { emoji:'🌟', label:'流星', weight:20, size:32 }
-  ],
+  HOLD_MS: 5200,      // 浮层停留时长（心跳 4 次 × 1.2s + 余量）
+  FADE_MS: 600,       // 淡出时长
+  COOLDOWN_MS: 900,   // 连点冷却
+  STALE_MS: 4000,     // 早于「打开页面时间」这么多毫秒的旧信号只记账、不播放
+  PENDING_MAX: 300000,// 后台攒下的信号最多保留 5 分钟
+
+  _seen: {},
+  _liveSince: 0,
+  _sending: false,
+  _hideTimer: null,
+  _closeTimer: null,
+  _fadeTimer: null,
+
+  // 对方昵称：一律动态读，绝不写死「TA」
+  _pn: function() {
+    try { return localStorage.getItem('sync_partnerName') || 'TA'; } catch (e) { return 'TA'; }
+  },
 
   init: function() {
-    if (!this._flushBound) { this._bindFlush(); this._flushBound = true; }
-    if (!Sync.partnerId) { this._hide(); return; }
-    this._loadCounts();
+    if (!this._liveSince) this._liveSince = Date.now();
+    if (!this._visBound) { this._bindVisibility(); this._visBound = true; }
     this.render();
   },
 
-  _pickIcon: function() {
-    var r = Math.random() * 100;
-    var acc = 0;
-    for (var i = 0; i < this._icons.length; i++) {
-      acc += this._icons[i].weight;
-      if (r <= acc) return this._icons[i];
-    }
-    return this._icons[0];
-  },
-
-  _loadCounts: function() {
-    try {
-      this._myCount = parseInt(localStorage.getItem('crane_my_count') || '0');
-      this._taCount = parseInt(localStorage.getItem('crane_ta_count') || '0');
-    } catch(e) { this._myCount = 0; this._taCount = 0; }
-    this._total = this._myCount + this._taCount;
-  },
-
-  _saveCounts: function() {
-    try { localStorage.setItem('crane_my_count', this._myCount); localStorage.setItem('crane_ta_count', this._taCount); } catch(e) {}
-  },
-
-  _hide: function() {
-    var el = document.getElementById('crane-jar-card');
-    if (el) el.style.display = 'none';
-  },
-
+  // 卡片：一张纯白圆角卡，中间一个描边胶囊按钮 + 一颗小心（v123 去掉了原先的实心大圆）
   render: function() {
     var el = document.getElementById('crane-jar-card');
     if (!el) return;
+    if (typeof Sync === 'undefined' || !Sync.partnerId) { el.style.display = 'none'; return; }
     el.style.display = '';
-    this._total = this._myCount + this._taCount;
-    var jarH = Math.max(100, Math.min(160, 80 + this._total * 2));
-
-    // Build jar contents — show up to 40 visible icons
-    var items = '';
-    var showCount = Math.min(this._total, 40);
-    for (var i = 0; i < showCount; i++) {
-      var seed = (i * 137 + 53) % 100; // deterministic pseudo-random
-      var iconIdx = i % this._icons.length;
-      var icon = this._icons[iconIdx];
-      items += '<span style="position:absolute;font-size:'+icon.size+'px;left:'+(4+(seed%88))+'%;top:'+(4+(i*7)%85)+'%;transform:rotate('+((seed-50)*0.6)+'deg);opacity:0.85;transition:all 0.3s;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1))">'+icon.emoji+'</span>';
-    }
-
     el.innerHTML =
-      '<div style="background:linear-gradient(135deg,#fdf2f8,#f5f3ff,#ede9fe);border-radius:var(--radius);padding:14px 16px">' +
-      '<div class="card-title" style="margin-bottom:10px">💓 思念瓶</div>' +
-      '<div style="display:flex;align-items:center;gap:14px">' +
-      // Glass jar
-      '<div id="crane-jar" style="position:relative;width:100px;height:'+jarH+'px;background:linear-gradient(135deg,rgba(255,255,255,0.5),rgba(255,255,255,0.2));border:2px solid rgba(200,180,220,0.5);border-radius:16px 16px 20px 20px;overflow:hidden;flex-shrink:0;cursor:pointer;box-shadow:inset 0 2px 12px rgba(255,255,255,0.3),0 4px 16px rgba(180,160,200,0.2);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)" onclick="Crane.addOne()" title="点击添加思念">' +
-      '<div style="position:absolute;top:-2px;left:18%;width:64%;height:10px;background:linear-gradient(180deg,rgba(200,180,220,0.5),rgba(220,210,240,0.3));border-radius:0 0 8px 8px;z-index:2"></div>' +
-      '<div style="position:absolute;left:6px;top:15%;width:3px;height:30%;background:rgba(255,255,255,0.5);border-radius:2px"></div>' +
-      '<div id="crane-items" style="position:absolute;inset:12px 4px 4px 4px">'+items+'</div>' +
-      (this._total > 0 ? '<div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:12px;color:var(--accent-warm);font-weight:700;z-index:2;text-shadow:0 1px 3px rgba(255,255,255,0.9)">'+this._total+'</div>' : '') +
-      '</div>' +
-      // Info + buttons
-      '<div style="flex:1;display:flex;flex-direction:column;gap:8px">' +
-      '<div style="font-size:13px;line-height:1.5;color:var(--text)">我 <b style="color:var(--accent-warm)">'+this._myCount+'</b> · TA <b style="color:var(--accent-blue)">'+this._taCount+'</b></div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="btn-primary" onclick="Crane.addOne();event.stopPropagation()" style="font-size:13px;padding:7px 16px;border-radius:20px;background:linear-gradient(135deg,#e8a0c0,#d4a0d4)">💌 想你了</button>' +
-      (this._myCount > 0 ? '<button class="btn-text btn-danger" onclick="Crane.clearAll();event.stopPropagation()" style="font-size:11px">清空</button>' : '') +
-      '</div></div></div></div>';
-
-    // Keyboard shortcut removed to prevent rapid flooding
+      '<div class="cn-card">' +
+        '<button class="cn-btn" id="cn-btn" onclick="Crane.send()">' +
+          '<span class="cn-btn-ic">' + this._heart(15) + '</span><span>想你了</span>' +
+        '</button>' +
+        '<div class="cn-hint" id="cn-hint"></div>' +
+        '<div class="cn-foot">点击，让 ' + escapeHtml(this._pn()) + ' 立刻知道</div>' +
+      '</div>';
   },
 
-  _lastClick: 0, _pendingSync: 0,
-  addOne: function() {
-    if (!Sync.roomCode) return;
-    var icon = this._pickIcon();
-    var before = this._total;
-    this._myCount++;
-    this._total = this._myCount + this._taCount;
-    this._pendingSync++;
-    this._saveCounts();
-    this.render();
-    this._flyIn(icon);
-    // Batch sync: only send to Supabase every 10 clicks or 15 seconds
+  // 小心形图标：与浮层那颗心同一份 path，尺寸可传（用 currentColor 跟随文字颜色）
+  _heart: function(size) {
+    return '<svg viewBox="0 0 24 22.5" aria-hidden="true" focusable="false" style="width:' + size +
+      'px;height:' + Math.round(size * 0.94) + 'px;display:block">' +
+      '<path d="M12 20.35l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.54L12 20.35z" fill="currentColor"/></svg>';
+  },
+
+  // ---------- 发送方 ----------
+  send: function() {
+    if (this._sending) return;
+    if (typeof Sync === 'undefined' || !Sync.roomId || !Sync.partnerId) {
+      showToast('先和 ' + this._pn() + ' 连接上再发吧');
+      return;
+    }
+    this._sending = true;
+
+    var ok = false;
+    try { ok = Sync.sendCranePing('ping') !== false; } catch (e) { ok = false; }
+
+    // 按钮：先缩到 0.9 再弹回 1.0（spring 缓动，见 .cn-tapped）
+    var btn = document.getElementById('cn-btn');
+    if (btn && btn.classList) {
+      btn.classList.remove('cn-tapped');
+      void btn.offsetWidth;                    // 强制重排，让动画能重复触发
+      btn.classList.add('cn-tapped');
+    }
+    this._flashHint(ok ? '已送达' : '没发出去，再试一次');
+    this._buzz(10);                            // 轻微震动一次，不连续
     var self = this;
-    if (this._pendingSync >= 10) { this._flushCrane(); }
-    else { clearTimeout(this._syncTimer); this._syncTimer = setTimeout(function(){self._flushCrane()},15000); }
-    // v113: crossing check — strict ===99 could be jumped over (e.g. 98 → 100)
-    if (before < 99 && this._total >= 99) this._milestone();
-  },
-  _flushCrane: function() {
-    if (this._pendingSync <= 0) return;
-    this._pendingSync = 0;
-    Sync.sendCraneBatch(this._myCount); // Send absolute total, not delta
+    setTimeout(function() { self._sending = false; }, this.COOLDOWN_MS);
   },
 
-  clearAll: function() {
-    if (!confirm('清空所有思念信物？TA的信物也会一起飞走哦')) return;
-    var total = this._total;
-    this._myCount = 0;
-    this._taCount = 0;
-    this._total = 0;
-    this._saveCounts();
-    this.render();
-    this._flyOut(total);
-    Sync.clearCranes();
+  // 「已送达」浮现 → 2 秒后淡出
+  _flashHint: function(txt) {
+    var h = document.getElementById('cn-hint');
+    if (!h) return;
+    h.textContent = txt;
+    if (h.classList) h.classList.add('show');
+    clearTimeout(this._hideTimer);
+    this._hideTimer = setTimeout(function() { if (h.classList) h.classList.remove('show'); }, 2000);
   },
 
-  // v113: flush pending crane clicks when the page is hidden/closed,
-  // so a burst of 1-9 clicks right before switching apps is never lost.
-  _bindFlush: function() {
+  // iOS Safari 不支持 vibrate，静默跳过；安卓 Chrome 可以
+  _buzz: function(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms || 10); } catch (e) {}
+  },
+
+  // ---------- 接收方：信号到达 ----------
+  onTaPing: function(action, msgId, at) {
+    if (action !== 'ping' && action !== 'reply') return;   // 旧版 add/clear 消息一律忽略
+    if (msgId && this._seen[msgId]) return;
+    if (msgId) { this._seen[msgId] = 1; this._trimSeen(); }
+
+    // 刚打开页面时，200 条历史里的旧信号只记账不播放，否则一进页面就乱跳
+    var t = at ? new Date(at).getTime() : 0;
+    if (!t || t < this._liveSince - this.STALE_MS) return;
+
+    if (document.hidden) {
+      // 人不在页面上 → 系统通知；等回到页面（或点通知）再补播心跳
+      try { localStorage.setItem('crane_pending_ping', String(Date.now())); } catch (e) {}
+      if (typeof Push !== 'undefined') Push.onPing(action === 'reply');
+      return;
+    }
+    this.showOverlay(action === 'reply');
+  },
+
+  // ---------- 前台心跳浮层 ----------
+  showOverlay: function(isReply) {
+    var ov = document.getElementById('ping-overlay');
+    if (!ov) return;
+    var self = this, pn = this._pn();
+
+    var txt = document.getElementById('ping-text');
+    if (txt) txt.textContent = isReply ? (pn + ' 也想你了') : (pn + ' 刚刚想你了');
+
+    var btn = document.getElementById('ping-reply');
+    if (btn) {
+      btn.textContent = '我也想你了';
+      if (btn.classList) btn.classList.remove('done');
+      btn.style.display = isReply ? 'none' : '';   // 回应类信号不再给按钮，避免无限来回
+    }
+
+    if (ov.classList) {
+      ov.classList.remove('hidden', 'cn-out', 'cn-play');
+      void ov.offsetWidth;                          // 重置动画，让心跳从头跳
+      ov.classList.add('cn-play');
+    }
+    this._buzz(10);                                 // 出现瞬间震一下，只一次
+
+    clearTimeout(this._closeTimer);
+    this._closeTimer = setTimeout(function() { self.hideOverlay(); }, this.HOLD_MS);
+  },
+
+  hideOverlay: function() {
+    var ov = document.getElementById('ping-overlay');
+    if (!ov || !ov.classList) return;
+    clearTimeout(this._closeTimer);
+    ov.classList.add('cn-out');
+    clearTimeout(this._fadeTimer);
+    this._fadeTimer = setTimeout(function() {
+      ov.classList.add('hidden');
+      ov.classList.remove('cn-play', 'cn-out');
+    }, this.FADE_MS);
+  },
+
+  // 点「我也想你了」：按钮变「已回应」，并回一个心跳给发起方（双向共振）
+  reply: function(ev) {
+    if (ev && ev.stopPropagation) ev.stopPropagation();   // 别让点击穿透到浮层去关闭它
+    var btn = document.getElementById('ping-reply');
+    if (btn) {
+      btn.textContent = '已回应';
+      if (btn.classList) btn.classList.add('done');
+    }
+    try { if (typeof Sync !== 'undefined') Sync.sendCranePing('reply'); } catch (e) {}
+    this._buzz(10);
+  },
+
+  // ---------- 后台攒下的信号：回到前台补播 ----------
+  playPending: function() {
+    var raw = null;
+    try { raw = localStorage.getItem('crane_pending_ping'); } catch (e) {}
+    if (!raw) return;
+    var t = parseInt(raw, 10) || 0;
+    try { localStorage.removeItem('crane_pending_ping'); } catch (e) {}
+    if (!t || Date.now() - t > this.PENDING_MAX) return;
+    if (document.hidden) return;
+    this.showOverlay(false);
+  },
+
+  _bindVisibility: function() {
     var self = this;
-    var flush = function() { if (self._pendingSync > 0) self._flushCrane(); };
-    document.addEventListener('visibilitychange', function() { if (document.hidden) flush(); });
-    window.addEventListener('pagehide', flush);
-  },
-
-  onTaCrane: function(total, msgId) {
-    total = parseInt(total) || 0;
-    if (msgId && this._seenCranes[msgId]) return;
-    if (msgId) this._seenCranes[msgId] = true;
-    var keys = Object.keys(this._seenCranes);
-    if (keys.length > 200) { for (var i = 0; i < 100; i++) delete this._seenCranes[keys[i]]; }
-    var prevTa = this._taCount;
-    this._taCount = total; // Set absolute count from partner
-    this._total = this._myCount + this._taCount;
-    this._saveCounts();
-    this.render();
-    var diff = Math.max(0, this._taCount - prevTa);
-    for (var i = 0; i < Math.min(diff, 5); i++) { setTimeout((function(){this._flyIn(this._pickIcon())}).bind(this), i*200); }
-    if (diff > 0) showToast('💌 TA想你了', 2000);
-    if (this._total >= 99 && prevTa + this._myCount < 99) this._milestone();
-  },
-
-  onTaClear: function(msgId) {
-    if (msgId && this._seenCranes[msgId]) return;
-    if (msgId) this._seenCranes[msgId] = true;
-    this._myCount = 0;
-    this._taCount = 0;
-    this._total = 0;
-    this._saveCounts();
-    this.render();
-  },
-
-  _flyIn: function(icon) {
-    var jar = document.getElementById('crane-jar');
-    if (!jar) return;
-    var r = jar.getBoundingClientRect();
-    var tx = r.left + r.width/2 - icon.size/2;
-    var ty = r.top + r.height * 0.4;
-    var el = document.createElement('div');
-    el.textContent = icon.emoji;
-    el.style.cssText = 'position:fixed;z-index:500;font-size:'+icon.size+'px;left:'+(Math.random()*window.innerWidth)+'px;top:-50px;transition:all 0.8s cubic-bezier(0.25,0.1,0.25,1.2);pointer-events:none;filter:drop-shadow(0 4px 8px rgba(180,140,200,0.5));opacity:0.95';
-    document.body.appendChild(el);
-    requestAnimationFrame(function() {
-      el.style.left = (tx + (Math.random()-0.5)*20) + 'px';
-      el.style.top = (ty + Math.random()*20) + 'px';
-      el.style.transform = 'rotate('+((Math.random()-0.5)*80)+'deg) scale(0.6)';
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) self.playPending();
     });
-    setTimeout(function() { el.style.opacity = '0'; el.style.transform += ' scale(0.3)'; setTimeout(function() { el.remove(); }, 300); }, 750);
   },
 
-  _flyOut: function(count) {
-    var items = this._icons;
-    var n = Math.min(count || 10, 30);
-    for (var i = 0; i < n; i++) {
-      setTimeout((function(idx) { return function() {
-        var icon = items[idx % 4];
-        var el = document.createElement('div');
-        el.textContent = icon.emoji;
-        el.style.cssText = 'position:fixed;z-index:500;font-size:'+icon.size+'px;bottom:45%;right:'+(20+Math.random()*40)+'px;transition:all 0.9s ease-in;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(180,140,200,0.4))';
-        document.body.appendChild(el);
-        requestAnimationFrame(function() {
-          el.style.bottom = (100 + Math.random() * 40) + '%';
-          el.style.right = (-20 + Math.random() * 120) + 'px';
-          el.style.transform = 'rotate('+((Math.random()-0.5)*120)+'deg) scale(0.5)';
-          el.style.opacity = '0';
-        });
-        setTimeout(function() { el.remove(); }, 900);
-      } })(i), i * 60);
-    }
-  },
-
-  _milestone: function() {
-    var jar = document.getElementById('crane-jar');
-    if (!jar) return;
-    // Golden glow
-    jar.style.transition = 'box-shadow 0.5s';
-    jar.style.boxShadow = '0 0 30px rgba(255,215,0,0.6), 0 0 60px rgba(255,215,0,0.4), 0 0 90px rgba(255,180,0,0.2), inset 0 2px 12px rgba(255,255,255,0.3)';
-    setTimeout(function() { jar.style.boxShadow = 'inset 0 2px 12px rgba(255,255,255,0.3), 0 4px 16px rgba(180,160,200,0.2)'; }, 3000);
-
-    // Spiral particles around jar
-    var jarRect = jar.getBoundingClientRect();
-    var cx = jarRect.left + jarRect.width / 2;
-    var cy = jarRect.top + jarRect.height / 2;
-    var icons = this._icons;
-    for (var i = 0; i < 16; i++) {
-      setTimeout((function(idx) { return function() {
-        var angle = (idx / 16) * Math.PI * 2;
-        var r = 70 + idx * 3;
-        var icon = icons[idx % 4];
-        var p = document.createElement('div');
-        p.textContent = icon.emoji;
-        p.style.cssText = 'position:fixed;z-index:600;font-size:'+(icon.size-4)+'px;left:'+(cx+r*Math.cos(angle)-15)+'px;top:'+(cy+r*Math.sin(angle)-15)+'px;transition:all 2.5s ease-out;pointer-events:none;filter:drop-shadow(0 0 8px rgba(255,215,0,0.6))';
-        document.body.appendChild(p);
-        requestAnimationFrame(function() {
-          p.style.left = (cx + (r+40) * Math.cos(angle + Math.PI * 0.7)) + 'px';
-          p.style.top = (cy + (r+40) * Math.sin(angle + Math.PI * 0.7)) + 'px';
-          p.style.opacity = '0';
-          p.style.transform = 'scale(1.8)';
-        });
-        setTimeout(function() { p.remove(); }, 2500);
-      } })(i), i * 100);
-    }
-
-    // Falling petals
-    for (var j = 0; j < 20; j++) {
-      setTimeout(function() {
-        var petal = document.createElement('div');
-        petal.textContent = ['🌸','💮','✿','🌷'][Math.floor(Math.random()*4)];
-        petal.style.cssText = 'position:fixed;z-index:599;font-size:'+(16+Math.random()*12)+'px;left:'+(Math.random()*95)+'%;top:-30px;transition:all '+(2+Math.random()*3)+'s ease-in;pointer-events:none;filter:drop-shadow(0 0 6px rgba(255,200,220,0.5))';
-        document.body.appendChild(petal);
-        requestAnimationFrame(function() {
-          petal.style.top = '105%';
-          petal.style.left = (parseFloat(petal.style.left) + (Math.random()-0.5)*30) + '%';
-          petal.style.transform = 'rotate('+(Math.random()*360)+'deg)';
-          petal.style.opacity = '0.6';
-        });
-        setTimeout(function() { petal.remove(); }, 4000);
-      }, j * 150);
-    }
+  _trimSeen: function() {
+    var keys = Object.keys(this._seen);
+    if (keys.length > 200) { for (var i = 0; i < 100; i++) delete this._seen[keys[i]]; }
   }
 };

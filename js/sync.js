@@ -388,11 +388,9 @@ var seen = false;
                   changed = true;
                   newMoodFromPartner = c.mood || 'sunny';
                 }
-                // Handle crane messages
+                // 想你了（v122）—— crane 通道现在传的是一次性信号，不是计数
                 if (m.type === 'crane' && msgObj.sender === 'partner') {
-                  var act = c.action || 'add';
-                  if (act === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(m.id); }
-                  else { if (typeof Crane !== 'undefined') Crane.onTaCrane(c.count || 1, m.id); }
+                  if (typeof Crane !== 'undefined') Crane.onTaPing(c.action, m.id, c.at);
                 }
                 // Shared wish list — apply partner's add/toggle/del to our copy (v114)
                 if (m.type === 'wish' && msgObj.sender === 'partner') {
@@ -505,8 +503,8 @@ var seen = false;
             if (cm.sender_user_id !== selfCrane.userId) {
               var cc = cm.content;
               if (typeof cc === 'string') { try { cc = JSON.parse(cc); } catch(e) { cc = {}; } }
-              if (cc.action === 'clear') { if (typeof Crane !== 'undefined') Crane.onTaClear(cm.id); }
-              else { if (typeof Crane !== 'undefined') Crane.onTaCrane(cc.count || 1, cm.id); }
+              // 只有 ping / reply 是有效信号；旧版的 add / clear 会被 Crane 自己忽略掉
+              if (typeof Crane !== 'undefined') Crane.onTaPing(cc.action, cm.id, cc.at);
             }
           }
         }
@@ -674,14 +672,18 @@ var seen = false;
     });
   },
 
-  sendCraneBatch: function(count) {
-    var self = this;
-    if (!this.roomId || !this.userId || !count) return;
+  // v122：想你了 —— 一次性的即时信号，不再是累积计数（旧版是 sendCraneBatch(count)）。
+  // kind: 'ping' = 我想你了 | 'reply' = 我也想你了
+  // 返回 false 表示压根没发出去（未配对 / 没连上），调用方据此给用户提示。
+  sendCranePing: function(kind) {
+    if (!this.roomId || !this.userId || !this.partnerId) return false;
+    var at = new Date().toISOString();
     SUPABASE.post('messages', {
       room_id: this.roomId, sender_user_id: this.userId,
-      type: 'crane', content: { action: 'add', count: count },
-      created_at: new Date().toISOString()
+      type: 'crane', content: { action: kind === 'reply' ? 'reply' : 'ping', at: at },
+      created_at: at
     }, function() {});
+    return true;
   },
 
   sendDiaryRead: function(diaryId) {
@@ -693,15 +695,7 @@ var seen = false;
     }, function() {});
   },
 
-  clearCranes: function() {
-    var self = this;
-    if (!this.roomId || !this.userId) return;
-    SUPABASE.post('messages', {
-      room_id: this.roomId, sender_user_id: this.userId,
-      type: 'crane', content: { action: 'clear' },
-      created_at: new Date().toISOString()
-    }, function() {});
-  },
+  // （v122 删掉了 clearCranes：现在没有「清空思念」这个概念了）
 
   // ========== Shared wish list (v114) ==========
   // One shared list both people read/write. Every entry carries a stable id

@@ -52,7 +52,7 @@ var Push = {
         self._unlockAudio();
         self.refreshSetting();
         showToast('通知已开启 🔔', 2000);
-        self.notify('通知已开启 🔔', 'TA发消息时，你就能收到提醒了', 'push-test');
+        self.notify('通知已开启 🔔', self._taName() + ' 发消息时，你就能收到提醒了', 'push-test');
       } else if (p === 'denied') {
         showToast('浏览器拒绝了通知权限，可在地址栏左边的锁图标里改', 3200);
         self.refreshSetting();
@@ -106,6 +106,13 @@ var Push = {
     this.notify(this._taName() + ' 答完了今天的题 💭', '看看 TA 怎么回答的', 'daily', false);
   },
 
+  // 想你了（v122）：人不在页面上时收到信号 —— 标题固定，正文用 TA 的昵称
+  // isReply=true 表示这是对方对我「想你了」的回应
+  onPing: function(isReply) {
+    var pn = this._taName();
+    this.notify('你的专属提醒', isReply ? (pn + ' 也想你了') : (pn + ' 想你了'), 'ping-' + Date.now(), false);
+  },
+
   // 时光胶囊相关
   onCapsule: function(text, body) {
     this.notify(text, body, 'capsule-' + Date.now(), false);
@@ -127,7 +134,12 @@ var Push = {
     try {
       var opt = { body: body || '', tag: tag || 'baby-time', renotify: false };
       var n = new Notification(title, opt);
-      n.onclick = function() { try { window.focus(); } catch (e) {} try { n.close(); } catch (e) {} };
+      n.onclick = function() {
+        try { window.focus(); } catch (e) {}
+        try { n.close(); } catch (e) {}
+        // v122：点开通知回到页面后，把刚才那次心跳补上（后台只发了通知，动画还没跳）
+        setTimeout(function() { if (typeof Crane !== 'undefined') Crane.playPending(); }, 400);
+      };
       setTimeout(function() { try { n.close(); } catch (e) {} }, 12000);
     } catch (e) { /* 部分浏览器必须用 ServiceWorkerRegistration.showNotification，静默跳过 */ }
   },
