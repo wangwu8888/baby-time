@@ -19,14 +19,17 @@ var Sync = {
     if (uid) {
       this.userId = uid;
       localStorage.setItem('sync_userId', uid);
-      // 阶段2：把客户端身份挂到匿名登录的 auth.uid()（幂等，RLS 靠它认人）
-      SUPABASE.AUTH.link(uid, function() {});
-      SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
-        if (!rows || !rows.length) {
-          var nick = localStorage.getItem('sync_partnerName') || '我';
-          SUPABASE.post('users', { user_id: uid, nickname: nick }, function() {});
-        }
-        cb();
+      // 阶段2：先等身份映射写完，再做任何会被 RLS 校验的读写。
+      // v117 修复：以前 link() 和下面的 get/post 是并发发出的，RLS 开启后
+      // 若映射还没落库，current_client_uid() 返回 null → 读写被判越权。
+      SUPABASE.AUTH.link(uid, function() {
+        SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
+          if (!rows || !rows.length) {
+            var nick = localStorage.getItem('sync_partnerName') || '我';
+            SUPABASE.post('users', { user_id: uid, nickname: nick }, function() {});
+          }
+          cb();
+        });
       });
     } else {
       uid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -36,9 +39,10 @@ var Sync = {
       this.userId = uid;
       localStorage.setItem('user_id', uid);
       localStorage.setItem('sync_userId', uid);
-      // 阶段2：新身份也要挂到映射表（此时匿名 token 已由请求闸门确保就绪）
-      SUPABASE.AUTH.link(uid, function() {});
-      SUPABASE.post('users', { user_id: uid, nickname: '' }, function() { cb(); });
+      // 阶段2：新身份也要先挂到映射表，再写 users 行（v117：改成串行，消除竞态）
+      SUPABASE.AUTH.link(uid, function() {
+        SUPABASE.post('users', { user_id: uid, nickname: '' }, function() { cb(); });
+      });
     }
   },
 

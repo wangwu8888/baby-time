@@ -128,18 +128,37 @@ var SUPABASE = {
     // RLS 的 current_client_uid() 靠这张表认人。幂等，可反复调用。
     // v116 修复：必须用登录后的 access_token 做 Bearer（不能用 anon key，
     // 否则 RLS 策略 to authenticated 不放行，映射永远写不进去 → 加入失败）。
+    // v117：POST 撞主键（409）时不再“当作成功放过去”，而是 PATCH 纠正成当前身份。
+    // 这能自动修复「同一个匿名身份换了设备/清过数据后 user_id 变了」导致的
+    // 映射错位——那种情况下所有写入都会被 RLS 判越权。
     link: function(clientUid, cb) {
       if (!this._uid || !clientUid || !this._tk) { cb && cb(false); return; }
       var self = this;
-      var x = new XMLHttpRequest();
-      x.open('POST', SUPABASE.URL + '/rest/v1/auth_links', true);
-      x.timeout = 8000;
-      var h = { 'apikey': SUPABASE.KEY, 'Authorization': 'Bearer ' + this._tk, 'Content-Type': 'application/json' };
-      Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-      x.onload = function() { cb && cb(x.status === 200 || x.status === 201 || x.status === 409); };
-      x.onerror = function() { cb && cb(false); };
-      x.ontimeout = function() { cb && cb(false); };
-      x.send(JSON.stringify({ auth_id: this._uid, user_id: clientUid }));
+      var base = SUPABASE.URL + '/rest/v1/auth_links';
+
+      function send(method, url, body, done) {
+        var x = new XMLHttpRequest();
+        x.open(method, url, true);
+        x.timeout = 8000;
+        var h = { 'apikey': SUPABASE.KEY, 'Authorization': 'Bearer ' + self._tk, 'Content-Type': 'application/json' };
+        Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
+        x.onload = function() { done(x.status); };
+        x.onerror = function() { done(0); };
+        x.ontimeout = function() { done(0); };
+        try { x.send(body ? JSON.stringify(body) : null); } catch (e) { done(0); }
+      }
+
+      send('POST', base, { auth_id: this._uid, user_id: clientUid }, function(st) {
+        if (st === 200 || st === 201) { cb && cb(true); return; }
+        if (st === 409) {
+          send('PATCH', base + '?auth_id=eq.' + encodeURIComponent(self._uid),
+            { user_id: clientUid }, function(st2) {
+              cb && cb(st2 === 200 || st2 === 204);
+            });
+          return;
+        }
+        cb && cb(false);
+      });
     },
 
     token: function() { return this._legacy ? SUPABASE.KEY : this._tk; },
