@@ -355,6 +355,8 @@ var Sync = {
         if (rows && rows.length) {
           var nc = 0;
           var decryptPromises = [];
+          var newChatFromPartner = null;   // v118: 只有真正的聊天消息才响铃/闪标题
+          var newMoodFromPartner = null;
           for (var i = rows.length - 1; i >= 0; i--) {
             var m = rows[i];
 var seen = false;
@@ -367,7 +369,8 @@ var seen = false;
                 var msgObj = {
                   id: m.id, sender: m.sender_user_id === self.userId ? 'me' : 'partner',
                   text: c.text || '', doodleDataUrl: m.type === 'doodle' ? (c.doodleDataUrl || c.text) : null,
-                  mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at, batchCount: c.count || 1
+                  mood: c.mood || 'sunny', type: m.type, createdAt: m.created_at, batchCount: c.count || 1,
+                  note: c.note || ''
                 };
                 self.partnerMessages.push(msgObj);// Handle diary read receipts
                 if (m.type === 'diary_read' && msgObj.sender === 'partner') {
@@ -381,8 +384,9 @@ var seen = false;
                 }
                 // Sync partner mood from mood_change messages (fallback for weather tab)
                 if (m.type === 'mood_change' && msgObj.sender === 'partner') {
-                  self.partnerMood = { status: c.mood || 'sunny', updatedAt: m.created_at };
+                  self.partnerMood = { status: c.mood || 'sunny', updatedAt: m.created_at, note: c.note || '' };
                   changed = true;
+                  newMoodFromPartner = c.mood || 'sunny';
                 }
                 // Handle crane messages
                 if (m.type === 'crane' && msgObj.sender === 'partner') {
@@ -397,6 +401,26 @@ var seen = false;
                 // Shared anniversaries — apply partner's add/del (v114)
                 if (m.type === 'anniversary' && msgObj.sender === 'partner') {
                   if (typeof TreeHole !== 'undefined') TreeHole.applyRemoteAnniversary(c, m.sender_user_id);
+                }
+                // 每日一题 — 收到 TA 的答案（v118）
+                if (m.type === 'daily_q' && msgObj.sender === 'partner') {
+                  if (typeof Daily !== 'undefined') Daily.applyRemote(c, m.sender_user_id);
+                }
+                // 时光胶囊 — add/del/open。add 的正文可能是密文，等解密完再落库（v118）
+                if (m.type === 'capsule' && msgObj.sender === 'partner') {
+                  if (c.encrypted && typeof Crypto !== 'undefined' && Crypto._ready) {
+                    (function(cc, mm) {
+                      decryptPromises.push(
+                        Crypto.decrypt(cc.text).then(function(plain) {
+                          if (typeof Capsule !== 'undefined') Capsule.applyRemote({ action: cc.action, cid: cc.cid, openAt: cc.openAt, at: cc.at, text: plain }, mm.sender_user_id);
+                        }).catch(function() {
+                          if (typeof Capsule !== 'undefined') Capsule.applyRemote({ action: cc.action, cid: cc.cid, openAt: cc.openAt, at: cc.at, text: '' }, mm.sender_user_id);
+                        })
+                      );
+                    })(c, m);
+                  } else if (typeof Capsule !== 'undefined') {
+                    Capsule.applyRemote(c, m.sender_user_id);
+                  }
                 }
                 // Store partner's shared diaries in localStorage for treehole.
                 // v113: capture per-iteration values in a closure (var-loop bug) and
@@ -430,6 +454,10 @@ var seen = false;
                     );
                   })(c, msgObj);
                 }
+                // v118: 只有文字/涂鸦才触发响铃 · 闪标题 · 未读红点
+                if (msgObj.sender === 'partner' && (m.type === 'text' || m.type === 'doodle')) {
+                  newChatFromPartner = msgObj;
+                }
                 nc++;
               }
             }
@@ -437,17 +465,13 @@ var seen = false;
             self.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
             if (self.partnerMessages.length > 500) self.partnerMessages.length = 500;
             changed = true;
-            // Flash title for new partner messages when not on weather view
-            var hasNewFromPartner = false;
-            for (var k = self.partnerMessages.length - nc; k < self.partnerMessages.length; k++) {
-              if (k >= 0 && self.partnerMessages[k] && self.partnerMessages[k].sender === 'partner') {
-                hasNewFromPartner = true; break;
-              }
-            }
-            if (hasNewFromPartner) {
+            // v118: 通知按类型分流——聊天消息响铃+红点，心情变化只轻提醒
+            if (newChatFromPartner) {
               self._flashTitle();
-              // Show unread badge on chat tab
               self._showBadge();
+              if (typeof Push !== 'undefined') Push.onNewMessage(newChatFromPartner);
+            } else if (newMoodFromPartner) {
+              if (typeof Push !== 'undefined') Push.onMood(newMoodFromPartner);
             }
           }
         }
@@ -559,11 +583,19 @@ var seen = false;
 
   // ========== Actions ==========
 
-  updateMood: function(st) {
+  // v118: 支持心情备注。备注只随 mood_change 消息走——moods 表没有备注列，
+  // 不动数据库结构；同时存到本地 moodState_me.message，刷新后仍在。
+  updateMood: function(st, note) {
     var self = this;
     if (!this.userId) return;
-    var body = { user_id: this.userId, room_id: this.roomId || null, status: st, updated_at: new Date().toISOString() };
-    self.myMood = { status: st, updatedAt: body.updated_at };
+    var now = new Date().toISOString();
+    var body = { user_id: this.userId, room_id: this.roomId || null, status: st, updated_at: now };
+    var hasNote = (typeof note === 'string');
+    if (hasNote) {
+      try { Storage.set('moodState_me', { status: st, updatedAt: now, message: note }); } catch (e) {}
+    }
+    var keepNote = hasNote ? note : ((self.myMood && self.myMood.note) || '');
+    self.myMood = { status: st, updatedAt: now, note: keepNote };
     // Use upsert: PATCH first, POST as fallback
     SUPABASE.patch('moods', 'user_id=eq.' + encodeURIComponent(this.userId), body, function() {
       // PATCH done (may update 0 rows for new user, that's ok — try POST)
@@ -571,9 +603,11 @@ var seen = false;
         // POST either creates new or silently conflicts (both OK)
       });
       if (self.roomId) {
+        var content = { mood: st };
+        if (hasNote) content.note = note;
         SUPABASE.post('messages', {
           room_id: self.roomId, sender_user_id: self.userId,
-          type: 'mood_change', content: { mood: st }, created_at: new Date().toISOString()
+          type: 'mood_change', content: content, created_at: now
         }, function() {});
       }
     });
@@ -680,6 +714,52 @@ var seen = false;
     SUPABASE.post('messages', {
       room_id: this.roomId, sender_user_id: this.userId,
       type: 'anniversary', content: c,
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+
+  // ========== 每日一题（v118） ==========
+  // 答案是一条普通消息，双方各写一条；题目由「日期哈希」在两端各自算出，
+  // 所以不需要先商量今天出哪题。content 里带 q 文本，题库改版也不会错位。
+  sendDailyAnswer: function(dateKey, idx, q, text) {
+    if (!this.roomId || !this.userId) return;
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'daily_q', content: { date: dateKey, idx: idx, q: q || '', text: text || '', at: new Date().toISOString() },
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+
+  // ========== 时光胶囊（v118） ==========
+  // 正文按房间密钥加密后放进 content.text（与分享日记同一条加密路径），
+  // 房间外的人即使拿到数据库原文也读不出来。
+  sendCapsuleAdd: function(cid, openAt, text) {
+    var self = this;
+    if (!this.roomId || !this.userId) return;
+    var useEncryption = ENCRYPTION_ENABLED && typeof Crypto !== 'undefined' && Crypto._ready;
+    var p = useEncryption ? Crypto.encrypt(text || '') : Promise.resolve(text || '');
+    p.then(function(encText) {
+      SUPABASE.post('messages', {
+        room_id: self.roomId, sender_user_id: self.userId,
+        type: 'capsule',
+        content: { action: 'add', cid: cid, openAt: openAt, text: encText, encrypted: useEncryption, at: new Date().toISOString() },
+        created_at: new Date().toISOString()
+      }, function() {});
+    });
+  },
+  sendCapsuleDel: function(cid) {
+    if (!this.roomId || !this.userId) return;
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'capsule', content: { action: 'del', cid: cid },
+      created_at: new Date().toISOString()
+    }, function() {});
+  },
+  sendCapsuleOpen: function(cid) {
+    if (!this.roomId || !this.userId) return;
+    SUPABASE.post('messages', {
+      room_id: this.roomId, sender_user_id: this.userId,
+      type: 'capsule', content: { action: 'open', cid: cid, at: new Date().toISOString() },
       created_at: new Date().toISOString()
     }, function() {});
   },

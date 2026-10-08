@@ -48,7 +48,12 @@ renderTimeline:function(){
   if(!ms.length&&!myMood.updatedAt){el.innerHTML='<div class="card"><p class="empty-hint">还没有消息，分享第一条心情吧</p></div>';return}
 
   var items=[];
-  ms.forEach(function(m){items.push({type:m.type||'text',text:m.text,doodleDataUrl:m.doodleDataUrl,mood:m.mood,createdAt:m.createdAt||m.created_at,sender:m.sender||'partner'})});
+  ms.forEach(function(m){
+    var tp=m.type||'text';
+    // v118: 每日一题 / 时光胶囊有自己的卡片，不在对话流里重复显示
+    if(tp==='daily_q'||tp==='capsule')return;
+    items.push({type:tp,text:m.text,doodleDataUrl:m.doodleDataUrl,mood:m.mood,note:m.note||'',createdAt:m.createdAt||m.created_at,sender:m.sender||'partner'});
+  });
   if(!items.length){el.innerHTML='<div class="card"><p class="empty-hint">等TA分享点什么吧</p></div>';return}
 
   items.sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt)});
@@ -78,7 +83,9 @@ renderTimeline:function(){
         if(it.sender==='me')return;
         var pn=localStorage.getItem('sync_partnerName')||'TA';
         row.style.cssText='text-align:center;padding:4px 0;font-size:12px;color:var(--text-dim)';
-        row.textContent=pn+' '+moodIcon+' 心情更新';
+        var mtxt=pn+' '+moodIcon+' 心情更新';
+        if(it.note)mtxt+='：'+it.note;
+        row.textContent=mtxt;
       }else if(it.type==='shared_diary'||it.type==='crane'){
         return; // Not shown in chat timeline
       }else{
@@ -153,8 +160,41 @@ _showFull:function(src){
   d.addEventListener('click',function(){d.remove()});document.body.appendChild(d);
 },
 
-renderMyMood:function(){var m=Sync.myMood||getMoodState('me');var c=MOOD_CONFIG[m.status]||MOOD_CONFIG.sunny;this.activeMood=m.status;var ie=document.getElementById('mood3d-icon');if(ie)ie.textContent=c.icon;var le=document.getElementById('mood3d-label');if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){os[i].classList.toggle('selected',os[i].getAttribute('data-mood')===this.activeMood)}},
-renderPartnerMood:function(){var pm=Sync.partnerMood||getMoodState('ta');var c=MOOD_CONFIG[pm.status]||MOOD_CONFIG.sunny;var pie=document.getElementById('partner-mood-icon');if(pie)pie.textContent=c.icon;var ple=document.getElementById('partner-mood-label');if(ple)ple.textContent=c.label;var pn=this._partnerName();var t=document.getElementById('partner-mood-title');if(t)t.textContent=pn+'的心情';var u=document.getElementById('partner-mood-updated');if(u)u.textContent=pm.updatedAt?formatDate(pm.updatedAt)+' '+formatTime(pm.updatedAt)+' 更新':'尚未更新'},
+renderMyMood:function(){var m=Sync.myMood||getMoodState('me');if(m.message===undefined&&Sync.myMood&&Sync.myMood.note!==undefined)m.message=Sync.myMood.note||'';if(typeof m.message!=='string')m.message='';var c=MOOD_CONFIG[m.status]||MOOD_CONFIG.sunny;this.activeMood=m.status;var ie=document.getElementById('mood3d-icon');if(ie)ie.textContent=c.icon;var le=document.getElementById('mood3d-label');if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){os[i].classList.toggle('selected',os[i].getAttribute('data-mood')===this.activeMood)}var nd=document.getElementById('mood-note-display');if(nd){var nt=m.message||'';nd.innerHTML=nt?('<span class="mood-note-text">✎ '+escapeHtml(nt)+'</span><button class="mood-note-clear" title="清除备注" onclick="Weather.clearMoodNote()">✕</button>'):''}},
+// ==================== v118: 心情备注 ====================
+// 备注只随 mood_change 消息同步（moods 表没有备注列，不动数据库）。
+// 自己的一侧还存在 localStorage 的 moodState_me.message，刷新不丢。
+saveMoodNote:function(){
+  var ni=document.getElementById('mood-note-input');if(!ni)return;
+  var t=ni.value.trim();
+  if(!t){showToast('写一句备注再保存吧');return}
+  if(typeof Sync==='undefined'||!Sync.userId){showToast('还在初始化，稍等一下');return}
+  var st=this.activeMood||(Sync.myMood&&Sync.myMood.status)||'sunny';
+  Sync.updateMood(st,t);
+  ni.value='';
+  this.renderMyMood();
+  showToast(Sync.partnerId?'备注已保存，TA 能看到 ✎':'已记录，配对后 TA 就能看到 ✎');
+},
+
+clearMoodNote:function(){
+  if(typeof Sync==='undefined'||!Sync.userId)return;
+  var st=this.activeMood||(Sync.myMood&&Sync.myMood.status)||'sunny';
+  Sync.updateMood(st,'');
+  this.renderMyMood();
+  showToast('备注已清除');
+},
+
+// 从最近的消息里取某个人最新一条 mood_change 的备注
+_noteFor:function(sender){
+  var ms=(typeof Sync!=='undefined'&&Sync.partnerMessages)?Sync.partnerMessages:[];
+  for(var i=0;i<ms.length;i++){
+    var m=ms[i];
+    if(m.type==='mood_change'&&m.sender===sender)return m.note||'';
+  }
+  return '';
+},
+
+renderPartnerMood:function(){var pm=Sync.partnerMood||getMoodState('ta');var c=MOOD_CONFIG[pm.status]||MOOD_CONFIG.sunny;var pie=document.getElementById('partner-mood-icon');if(pie)pie.textContent=c.icon;var ple=document.getElementById('partner-mood-label');if(ple)ple.textContent=c.label;var pn=this._partnerName();var t=document.getElementById('partner-mood-title');if(t)t.textContent=pn+'的心情';var u=document.getElementById('partner-mood-updated');if(u)u.textContent=pm.updatedAt?formatDate(pm.updatedAt)+' '+formatTime(pm.updatedAt)+' 更新':'尚未更新';var ne=document.getElementById('partner-mood-note');if(ne){var nt=this._noteFor('partner');ne.innerHTML=nt?'<span class="partner-note">✎ '+escapeHtml(nt)+'</span>':''}},
 renderRoomBadge:function(){var b=document.getElementById('room-badge');if(!b)return;if(Sync.roomCode){b.textContent=(Sync.partnerId?'💞':'⏳')+' #'+Sync.roomCode;b.style.display='inline'}else{b.style.display='none'}},
 _partnerName:function(){return localStorage.getItem('sync_partnerName')||'TA'},
 _getTogetherDays:function(){
