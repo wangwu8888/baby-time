@@ -7,6 +7,7 @@
 var Capsule = {
   KEY: 'capsules',
   _open: false,          // 写信表单是否展开
+  _expanded: false,      // 整张卡是否展开（默认折叠，像「我的日记」一样）
   _notified: {},         // 本次会话内已提醒过的解锁
 
   // ---------- 工具 ----------
@@ -34,7 +35,8 @@ var Capsule = {
   },
 
   // ---------- 封一个 ----------
-  toggleForm: function() { this._open = !this._open; this.render(); },
+  toggleForm: function() { this._open = !this._open; if (this._open) this._expanded = true; this.render(); },
+  toggleCard: function() { this._expanded = !this._expanded; this.render(); },
 
   create: function(text, openAt) {
     text = (text || '').trim();
@@ -105,7 +107,9 @@ var Capsule = {
     if (c.action === 'add') {
       if (idx >= 0) return;                        // 已存在，幂等
       a.unshift({ cid: c.cid, text: c.text || '', openAt: c.openAt, createdAt: c.at || new Date().toISOString(), author: 'ta', opened: false, openedAt: null });
-      this._setAll(a); this.render();
+      this._setAll(a);
+      this._expanded = true;   // TA 封了一个，自动展开让对方看到
+      this.render();
       if (typeof Push !== 'undefined') Push.onCapsule('📦 TA 封了一个时光胶囊', '写着「到 ' + (c.openAt || '') + ' 才能打开」');
     } else if (c.action === 'del') {
       if (idx < 0) return;
@@ -127,6 +131,7 @@ var Capsule = {
       hit++;
     }
     if (!hit) return;
+    this._expanded = true;   // 有胶囊到点了，自动展开一次（用户之后手动收起不干扰）
     var who = '有一个时光胶囊可以打开了 🔓';
     if (hit > 1) who = '有 ' + hit + ' 个时光胶囊可以打开了 🔓';
     showToast(who + '，去树洞看看', 3200);
@@ -150,10 +155,12 @@ var Capsule = {
     }
 
     var html = '<div class="card">';
-    html += '<div class="daily-head"><div class="card-title" style="margin:0">📦 时光胶囊' +
+    // 标题行：整行可点（默认收起，像「我的日记」）；右侧只留一个「+」
+    html += '<div class="daily-head" style="cursor:pointer" onclick="Capsule.toggleCard()"><div class="card-title" style="margin:0">📦 时光胶囊' +
       (sealed ? ' <span class="daily-streak">封存中 ' + sealed + '</span>' : '') +
       (ready ? ' <span class="daily-streak ready">可打开 ' + ready + '</span>' : '') + '</div>' +
-      '<button class="btn-text" onclick="Capsule.toggleForm()">' + (this._open ? '收起' : '+ 封一个') + '</button></div>';
+      '<button class="btn-text" style="font-size:16px" onclick="event.stopPropagation();Capsule.toggleForm()">' + (this._open ? '收起' : '+') + '</button></div>';
+    html += '<div style="' + (this._expanded ? '' : 'display:none') + '">';
 
     if (this._open) {
       html += '<div class="capsule-form">';
@@ -196,6 +203,7 @@ var Capsule = {
       }
     }
     html += '<div class="capsule-foot">🔒 只有你们两个人能打开</div>';
+    html += '</div>';
     html += '</div>';
     el.innerHTML = html;
   },
