@@ -109,7 +109,7 @@
 .capsule-text-open{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--text-primary);margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
 .capsule-open-btn{margin-top:10px;padding:8px 16px!important;font-size:14px!important}
 .capsule-locked-hint{font-size:11px;color:var(--text-dim);margin-top:6px}
-.capsule-foot{font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);line-height:1.5}
+.capsule-foot{font-size:10.5px;color:#C6BCB7;text-align:center;margin-top:12px;letter-spacing:0.3px}
 .capsule-letter{font-size:15px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:var(--text-primary);background:var(--bg-secondary);border-radius:12px;padding:14px;max-height:46vh;overflow-y:auto}
 
 /* ---- v122：想你了（即时信号，不是计数器）---- */
