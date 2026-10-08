@@ -47,7 +47,7 @@
 
 <div id="daily-section"></div>
 
-<div class="card" id="crane-jar-card" style="display:none"></div>
+<div id="crane-jar-card" style="display:none"></div>
 <div class="card partner-mood-card" id="partner-card" style="display:none">
 <div class="card-title" id="partner-mood-title">TA的心情</div>
 <div class="partner-mood-display"><span class="partner-mood-icon" id="partner-mood-icon">☀️</span><div><div class="partner-mood-label" id="partner-mood-label">晴朗</div><div class="partner-mood-updated" id="partner-mood-updated">尚未更新</div></div></div>
@@ -80,7 +80,7 @@
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">提示音</div><div class="setting-desc">收到新消息时响一声</div></div><button class="btn-text" id="setting-push-sound" onclick="Push.toggleSound()">提示音 开 🔊</button></div>
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">清除本地数据</div><div class="setting-desc">删除本地记录、涂鸦和设置</div></div><button class="btn-text btn-danger" onclick="clearAllData()">清除</button></div>
 </div>
-<p class="version-info">心情气象台 v121</p>
+<p class="version-info">心情气象台 v123</p>
 </div>
 
 <nav class="tab-bar">
@@ -195,21 +195,32 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="js/utils.js?v=121"></script>
-<script src="js/qrdecode.js?v=121"></script>
-<script src="js/storage.js?v=121"></script>
-<script src="js/supabase.js?v=121"></script>
-<script src="js/crypto.js?v=121"></script>
-<script src="js/sync.js?v=121"></script>
-<script src="js/weather.js?v=121"></script>
-<script src="js/treehole.js?v=121"></script>
-<script src="js/doodle.js?v=121"></script>
-<script src="js/care.js?v=121"></script>
-<script src="js/crane.js?v=121"></script>
-<script src="js/weekly.js?v=121"></script>
-<script src="js/push.js?v=121"></script>
-<script src="js/daily.js?v=121"></script>
-<script src="js/capsule.js?v=121"></script>
-<script src="js/app.js?v=121"></script>
+<div id="ping-overlay" class="cn-overlay hidden" onclick="Crane.hideOverlay()">
+<div class="cn-heart-wrap">
+<div class="cn-glow"></div>
+<svg class="cn-heart" viewBox="0 0 24 22.5" aria-hidden="true" focusable="false"><path d="M12 20.35l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.54L12 20.35z" fill="#E5989B" fill-opacity="0.92"/></svg>
+</div>
+<div class="cn-overlay-foot">
+<span class="cn-ping-text" id="ping-text"></span>
+<button class="cn-reply" id="ping-reply" onclick="Crane.reply(event)">我也想你了</button>
+</div>
+</div>
+
+<script src="js/utils.js?v=123"></script>
+<script src="js/qrdecode.js?v=123"></script>
+<script src="js/storage.js?v=123"></script>
+<script src="js/supabase.js?v=123"></script>
+<script src="js/crypto.js?v=123"></script>
+<script src="js/sync.js?v=123"></script>
+<script src="js/weather.js?v=123"></script>
+<script src="js/treehole.js?v=123"></script>
+<script src="js/doodle.js?v=123"></script>
+<script src="js/care.js?v=123"></script>
+<script src="js/crane.js?v=123"></script>
+<script src="js/weekly.js?v=123"></script>
+<script src="js/push.js?v=123"></script>
+<script src="js/daily.js?v=123"></script>
+<script src="js/capsule.js?v=123"></script>
+<script src="js/app.js?v=123"></script>
 </body>
 </html>
