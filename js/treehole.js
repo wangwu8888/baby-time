@@ -13,7 +13,7 @@ renderSharedDiaries:function(){
   try{sds=JSON.parse(localStorage.getItem('shared_diaries')||'[]')}catch(e){}
   var unread=0;
   for(var i=0;i<sds.length;i++){if(!sds[i].read)unread++}
-  var html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="TreeHole._toggleSharedDiary()"><div class="card-title" style="margin:0">📬 TA分享的日记'+(unread>0?' <span style="display:inline-block;width:8px;height:8px;background:#F43F5E;border-radius:50%;vertical-align:middle;margin-left:2px"></span>':'')+'</div><span id="shared-diary-toggle" style="font-size:18px">'+(this._sharedDiaryOpen?'▼':'▶')+'</span></div>';
+  var html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="TreeHole._toggleSharedDiary()"><div class="card-title" style="margin:0">📬 TA分享的日记'+(unread>0?' <span style="display:inline-block;width:8px;height:8px;background:#F43F5E;border-radius:50%;vertical-align:middle;margin-left:2px"></span>':'')+'</div><span id="shared-diary-toggle" class="btn-text" style="font-size:12px">'+(this._sharedDiaryOpen?'收起':'展开')+'</span></div>';
   html+='<div id="shared-diary-body" style="'+(this._sharedDiaryOpen?'':'display:none')+'">';
   if(!sds.length){
     html+='<p class="empty-hint">还没有收到TA分享的日记</p>';
@@ -32,7 +32,7 @@ renderSharedDiaries:function(){
       var monthUnread=0;
       months[mk].forEach(function(sd){if(!sd.read)monthUnread++});
       html+='<div style="margin-bottom:4px"><div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg-secondary);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500" onclick="TreeHole._toggleSharedMonth(\''+mk+'\')">';
-      html+='<span>'+(isOpen?'▼':'▶')+' '+mk+' ('+months[mk].length+'篇)'+(monthUnread>0?' <span style="display:inline-block;width:6px;height:6px;background:#F43F5E;border-radius:50%;vertical-align:middle"></span>':'')+'</span>';
+      html+='<span>'+mk+' ('+months[mk].length+'篇)'+(monthUnread>0?' <span style="display:inline-block;width:6px;height:6px;background:#F43F5E;border-radius:50%;vertical-align:middle"></span>':'')+'</span>';
       html+='</div>';
       if(isOpen){
         html+='<div style="padding-left:4px">';
@@ -80,7 +80,7 @@ renderDiary:function(){
   var el=document.getElementById('diary-section');if(!el)return;
   var es=getEntries('me');
   var self=this;
-  var html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="TreeHole._toggleDiary()"><div class="card-title" style="margin:0">📖 我的日记</div><span id="diary-toggle" style="font-size:18px">'+(this._diaryOpen?'▼':'▶')+'</span></div>';
+  var html='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="TreeHole._toggleDiary()"><div class="card-title" style="margin:0">📖 我的日记</div><span id="diary-toggle" class="btn-text" style="font-size:12px">'+(this._diaryOpen?'收起':'展开')+'</span></div>';
   html+='<div id="diary-body" style="'+(this._diaryOpen?'':'display:none')+'">';
   html+='<textarea id="entry-text" class="entry-textarea" placeholder="写点什么吧…" rows="3"></textarea>';
   html+='<div class="entry-mood-select" id="entry-mood-select" style="display:flex;gap:6px;margin:8px 0">';
@@ -98,7 +98,6 @@ renderDiary:function(){
         html+='<div class="diary-row" style="border-left:3px solid '+m.accent+';padding:8px 12px;margin-bottom:4px;background:var(--bg-card);border-radius:0 8px 8px 0;cursor:pointer" onclick="TreeHole._toggleEntry(\''+e.id+'\')">';
         html+='<div style="display:flex;align-items:center;justify-content:space-between">';
         html+='<span style="font-size:14px">'+m.icon+' <span style="font-size:12px;color:var(--text-dim)">'+formatMonthDay(e.createdAt)+'</span></span>';
-        html+='<span style="font-size:11px;color:var(--text-dim)">'+(isExpanded?'▲':'▼')+'</span>';
         html+='</div>';
         if(!isExpanded){
           html+='<div style="font-size:13px;color:var(--text);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(preview||'(空)')+'</div>';
@@ -304,7 +303,7 @@ renderMemorial:function(){
   var annWrap=document.createElement('div');annWrap.style.marginBottom='14px';
   var annHeader=document.createElement('div');
   annHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
-  annHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._annOpen?'▼':'▶')+' 纪念日</span><span class="btn-text" style="font-size:12px">'+(this._annOpen?'收起':'展开')+'</span>';
+  annHeader.innerHTML='<span style="font-weight:600;font-size:14px">纪念日</span><span class="btn-text" style="font-size:12px">'+(this._annOpen?'收起':'展开')+'</span>';
   annHeader.addEventListener('click',function(){self._annOpen=!self._annOpen;self.renderMemorial()});
   annWrap.appendChild(annHeader);
 
@@ -368,7 +367,7 @@ renderMemorial:function(){
   wishHeader.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer';
   var wishes=this._getWishes();
   var doneCount=0;for(var wi=0;wi<wishes.length;wi++){if(wishes[wi].done)doneCount++}
-  wishHeader.innerHTML='<span style="font-weight:600;font-size:14px">'+(this._wishOpen?'▼':'▶')+' 一起想做的事'+(wishes.length?' <span style="font-weight:400;font-size:11px;color:var(--text-dim)">'+doneCount+'/'+wishes.length+'</span>':'')+'</span><span class="btn-text" style="font-size:12px">'+(this._wishOpen?'收起':'展开')+'</span>';
+  wishHeader.innerHTML='<span style="font-weight:600;font-size:14px">一起想做的事'+(wishes.length?' <span style="font-weight:400;font-size:11px;color:var(--text-dim)">'+doneCount+'/'+wishes.length+'</span>':'')+'</span><span class="btn-text" style="font-size:12px">'+(this._wishOpen?'收起':'展开')+'</span>';
   wishHeader.addEventListener('click',function(){self._wishOpen=!self._wishOpen;self.renderMemorial()});
   wishWrap.appendChild(wishHeader);
 

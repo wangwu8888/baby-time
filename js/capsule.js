@@ -195,7 +195,7 @@ var Capsule = {
         html += '</div>';
       }
     }
-    html += '<div class="capsule-foot">胶囊是你们之间的约定，不是密码锁——内容已按房间密钥加密，房间外的人读不到</div>';
+    html += '<div class="capsule-foot">🔒 只有你们两个人能打开</div>';
     html += '</div>';
     el.innerHTML = html;
   },
