@@ -111,3 +111,36 @@
 .capsule-locked-hint{font-size:11px;color:var(--text-dim);margin-top:6px}
 .capsule-foot{font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);line-height:1.5}
 .capsule-letter{font-size:15px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:var(--text-primary);background:var(--bg-secondary);border-radius:12px;padding:14px;max-height:46vh;overflow-y:auto}
+
+/* ---- v122：想你了（即时信号，不是计数器）---- */
+/* 发送方：一张纯白圆角卡 + 中间一个大圆按钮，没有容器、没有计数 */
+.cn-card{background:#FFFFFF;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.03);padding:20px 18px 15px;text-align:center}
+/* v123：按钮从 112px 实心大圆 → 描边胶囊 + 心（更轻、更克制） */
+.cn-btn{display:inline-flex;align-items:center;gap:7px;padding:12px 28px;border:1.5px solid #E9B3B6;border-radius:999px;background:#FFFFFF;color:#DF8A8E;font-family:var(--font);font-size:15px;letter-spacing:1.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 8px rgba(229,152,155,0.10);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),background 0.22s ease,box-shadow 0.25s ease}
+.cn-btn .cn-btn-ic{display:flex;color:#E5989B}
+.cn-btn:active{transform:scale(0.94);background:#FDF4F4;box-shadow:0 1px 4px rgba(229,152,155,0.10)}
+.cn-btn.cn-tapped{animation:cnTap 0.4s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes cnTap{0%{transform:scale(0.92)}100%{transform:scale(1)}}
+.cn-hint{height:17px;margin-top:10px;font-size:12px;color:#B3A49D;letter-spacing:0.3px;opacity:0;transition:opacity 0.3s ease}
+.cn-hint.show{opacity:1}
+.cn-foot{margin-top:4px;font-size:11.5px;color:#C6BCB7;letter-spacing:0.2px}
+
+/* 接收方：全屏透明浮层，不打断任何操作 */
+.cn-overlay{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;background:transparent;opacity:1;transition:opacity 0.6s ease}
+.cn-overlay.hidden{display:none}
+.cn-overlay.cn-out{opacity:0}
+.cn-heart-wrap{position:relative;width:170px;height:170px;display:flex;align-items:center;justify-content:center;transition:transform 0.6s cubic-bezier(0.4,0,0.2,1)}
+.cn-overlay.cn-out .cn-heart-wrap{animation:none;transform:scale(0.72)}
+.cn-glow{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(229,152,155,0.5),rgba(229,152,155,0) 70%);opacity:0.2}
+.cn-heart{position:relative;width:104px;height:104px;display:block;filter:drop-shadow(0 8px 18px rgba(229,152,155,0.3))}
+.cn-play .cn-heart-wrap{animation:cnBeat 1.2s ease-in-out 4}
+.cn-play .cn-glow{animation:cnGlow 1.2s ease-in-out 4}
+@keyframes cnBeat{0%,100%{transform:scale(1)}45%{transform:scale(1.15)}}
+@keyframes cnGlow{0%,100%{opacity:0.2}45%{opacity:0.6}}
+.cn-overlay-foot{position:absolute;left:0;right:0;bottom:12%;text-align:center;opacity:0;animation:cnFadeIn 0.8s ease 0.45s forwards}
+.cn-ping-text{display:block;font-size:13px;color:#B3A49D;letter-spacing:0.3px}
+.cn-reply{margin-top:12px;padding:8px 22px;border:1px solid rgba(229,152,155,0.55);border-radius:999px;background:rgba(255,255,255,0.92);color:#DF8A8E;font-family:var(--font);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.18s ease,background 0.2s ease,color 0.2s ease}
+.cn-reply:active{transform:scale(0.96)}
+.cn-reply.done{border-color:transparent;background:transparent;color:#B3A49D;cursor:default}
+@keyframes cnFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
