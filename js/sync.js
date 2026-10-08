@@ -461,6 +461,21 @@ var seen = false;
                 nc++;
               }
             }
+
+          // v121：把双方「写过每日一题答案」的日期喂给 Daily，用来算真实默契值。
+          // 走全量 rows（不是上面的 !seen 分支），这样本地记录被清掉也能从历史消息里补回来。
+          var dMine = {}, dTa = {};
+          for (var qi = 0; qi < rows.length; qi++) {
+            var qm = rows[qi];
+            if (qm.type !== 'daily_q') continue;
+            var qc = qm.content;
+            if (typeof qc === 'string') { try { qc = JSON.parse(qc); } catch (e) { qc = null; } }
+            if (!qc || !qc.date) continue;
+            if (qm.sender_user_id === self.userId) dMine[qc.date] = 1;
+            else dTa[qc.date] = 1;
+          }
+          if (typeof Daily !== 'undefined') Daily.setRemoteDays(dMine, dTa);
+
           if (nc > 0) {
             self.partnerMessages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
             if (self.partnerMessages.length > 500) self.partnerMessages.length = 500;

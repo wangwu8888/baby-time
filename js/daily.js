@@ -1,6 +1,9 @@
-// ==================== 每日一题（v118） ====================
+// ==================== 每日一题（v120 密信盲盒风） ====================
 // 双方每天看到的是同一道题——不需要商量，靠「日期哈希」各自算出同一个下标。
 // 答案复用 messages 表（type='daily_q'），已经上了 RLS，只有房间成员能读，不用新建表。
+//
+// 交互：卡片 = 一封今天的密信。问题被色块盖住，轻触「刮开」才浮现；
+//       写回信走底部弹窗，封存后主卡片留一张清爽的回执（不再有常驻输入框和大按钮）。
 //
 // 题库：改这个数组即可换题（注意两端版本要一致，否则同一天可能算出不同的题）。
 var DAILY_QUESTIONS = [
@@ -99,6 +102,11 @@ var DAILY_QUESTIONS = [
 var Daily = {
   KEY: 'daily_answers',
 
+  // 远端「双方各写过哪几天」的日期集合（由 sync 每次拉消息时喂进来）。
+  // 只用来算默契值，不参与题目展示 —— 本地记录被清掉时也能把默契值补回来。
+  _remote: { mine: {}, ta: {} },
+  _remoteFp: '',
+
   // ---------- 日期与选题 ----------
   _key: function(d) {
     d = d || new Date();
@@ -119,48 +127,81 @@ var Daily = {
   _setAll: function(m) { try { localStorage.setItem(this.KEY, JSON.stringify(m)); } catch (e) {} },
   _day: function(k) {
     var m = this._all();
-    if (!m[k]) { m[k] = { idx: this._idxFor(k), q: this._qFor(k)[1], cat: this._qFor(k)[0], mine: null, ta: null }; this._setAll(m); }
+    if (!m[k]) {
+      var q = this._qFor(k);
+      m[k] = { idx: this._idxFor(k), q: q[1], cat: q[0], mine: null, ta: null, opened: false, draft: '' };
+      this._setAll(m);
+    }
     return m[k];
   },
+  _save: function(k, rec) { var m = this._all(); m[k] = rec; this._setAll(m); },
 
-  // ---------- 打卡统计 ----------
-  _streak: function() {
-    var m = this._all(), n = 0, d = new Date();
-    // 今天还没答的话，从昨天开始算连续
-    if (!(m[this._key(d)] && m[this._key(d)].mine)) d.setDate(d.getDate() - 1);
-    while (true) {
-      var rec = m[this._key(d)];
-      if (rec && rec.mine) { n++; d.setDate(d.getDate() - 1); } else break;
-      if (n > 999) break;
+  // ---------- 拆信：色块渐隐，露出今天的问题 ----------
+  // 拆过一次就记进 opened，之后刷新/重进都直接显示问题，不再重复刮。
+  _opening: false,
+  reveal: function() {
+    var self = this, k = this._key(), rec = this._day(k);
+    if (rec.opened || this._opening) return;          // 已拆开 / 正在拆，防连点
+    var el = document.getElementById('dc-scratch');
+    var finish = function() {
+      self._opening = false;
+      var r = self._day(k); r.opened = true; self._save(k, r); self.render();
+    };
+    if (!el) { finish(); return; }                    // 找不到节点也要让状态生效
+    this._opening = true;
+    el.classList.add('dc-opening');                   // 300ms 渐隐，与 CSS 时长一致
+    setTimeout(finish, 300);
+  },
+
+  // ---------- 写信：底部弹窗 ----------
+  openSheet: function() {
+    var rec = this._day(this._key());
+    var sh = document.getElementById('daily-sheet');
+    if (!sh) return;
+    var q = document.getElementById('ds-question');
+    if (q) q.textContent = rec.q || '';
+    var ta = document.getElementById('ds-text');
+    if (ta) ta.value = (rec.mine && rec.mine.text) || rec.draft || '';
+    sh.classList.remove('hidden');
+    // 等入场动效走完再聚焦，手机键盘才会跟着弹出来
+    setTimeout(function() {
+      var t = document.getElementById('ds-text');
+      if (!t) return;
+      try { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } catch (e) {}
+    }, 320);
+  },
+
+  // keepDraft 为 false 表示「封存后关闭」，否则把草稿留着，下次点开还在
+  closeSheet: function(keepDraft) {
+    if (keepDraft !== false) {
+      var ta = document.getElementById('ds-text');
+      if (ta) { var k = this._key(), r = this._day(k); r.draft = ta.value || ''; this._save(k, r); }
     }
-    return n;
-  },
-  _bothDays: function() {
-    var m = this._all(), n = 0;
-    for (var k in m) { if (m[k] && m[k].mine && m[k].ta) n++; }
-    return n;
+    var sh = document.getElementById('daily-sheet');
+    if (sh) sh.classList.add('hidden');
   },
 
-  // ---------- 我回答 ----------
-  answer: function(text) {
-    text = (text || '').trim();
-    if (!text) { showToast('写点什么再提交吧'); return; }
-    if (!text) return;
-    if (typeof Sync === 'undefined' || !Sync.roomId || !Sync.partnerId) { showToast('先和 TA 连接上再回答吧'); return; }
+  seal: function() {
+    var ta = document.getElementById('ds-text');
+    var text = ta ? (ta.value || '').trim() : '';
+    if (!text) { showToast('写点什么再封存吧'); return; }
+    if (typeof Sync === 'undefined' || !Sync.roomId || !Sync.partnerId) { showToast('先和 TA 连接上再写信吧'); return; }
     var k = this._key(), rec = this._day(k);
     rec.mine = { text: text, at: new Date().toISOString() };
-    var m = this._all(); m[k] = rec; this._setAll(m);
+    rec.opened = true;
+    rec.draft = '';
+    this._save(k, rec);
     Sync.sendDailyAnswer(k, rec.idx, rec.q, text);
+    this.closeSheet(false);
     this.render();
-    showToast('已提交，等 TA 回答后就能互相看到 💭');
+    showToast('已封存，等 TA 拆开 💌');
   },
 
-  reAnswer: function() {
-    var k = this._key(), rec = this._day(k);
-    var t = prompt('重新回答今天的题：', (rec.mine && rec.mine.text) || '');
-    if (t === null) return;
-    if (!t.trim()) return;
-    this.answer(t.trim());
+  // 兼容旧调用：answer('文字')
+  answer: function(text) {
+    var ta = document.getElementById('ds-text');
+    if (text !== undefined && ta) ta.value = text;
+    this.seal();
   },
 
   // ---------- 收到 TA 的答案 ----------
@@ -168,7 +209,7 @@ var Daily = {
     if (!c || !c.date || !c.text) return;
     var m = this._all();
     var rec = m[c.date];
-    if (!rec) { rec = { idx: c.idx, q: c.q || '', cat: c.cat || '', mine: null, ta: null }; }
+    if (!rec) { rec = { idx: c.idx, q: c.q || '', cat: c.cat || '', mine: null, ta: null, opened: false, draft: '' }; }
     // 版本不一致时，以 TA 带过来的题目为准展示
     if (typeof c.idx === 'number' && rec.idx !== c.idx && c.q) { rec.q = c.q; rec.cat = c.cat || rec.cat; }
     if (rec.ta && rec.ta.at && new Date(rec.ta.at) >= new Date(c.at || 0)) return; // 旧的重复消息不覆盖
@@ -178,9 +219,46 @@ var Daily = {
     if (typeof Push !== 'undefined') Push.onDaily();
   },
 
+  // ---------- 默契值 ----------
+  // 由 sync 每次拉到消息时调用：mine/ta 是「我 / TA 写过答案的日期」集合。
+  // 内容没变就不重绘，避免 1.5s 一次的轮询把界面刷得抖动。
+  _fp: function(o) { var a = [], k; for (k in o) a.push(k); a.sort(); return a.join(','); },
+  setRemoteDays: function(mine, ta) {
+    var fp = this._fp(mine || {}) + '|' + this._fp(ta || {});
+    if (fp === this._remoteFp) return;
+    this._remoteFp = fp;
+    this._remote = { mine: mine || {}, ta: ta || {} };
+    this.render();
+  },
+
+  // 默契值 = 「两个人都写过答案」的天数。
+  // 只算交集：单独一方写了不算，所以答完自己的不会 +1，要等 TA 也回信才 +1。
+  tacit: function() {
+    var k = this._key(), m = this._all(), days = {}, dk, n = 0;
+    // 「我写过 / TA 写过」两个来源合并：本地记录（即时） + 远端消息（可补回被清掉的记录）
+    for (dk in m) {
+      if (!days[dk]) days[dk] = {};
+      if (m[dk] && m[dk].mine) days[dk].mine = 1;
+      if (m[dk] && m[dk].ta) days[dk].ta = 1;
+    }
+    for (dk in this._remote.mine) { if (!days[dk]) days[dk] = {}; days[dk].mine = 1; }
+    for (dk in this._remote.ta) { if (!days[dk]) days[dk] = {}; days[dk].ta = 1; }
+    for (dk in days) { if (days[dk].mine && days[dk].ta) n++; }
+    return { total: n, todayDone: !!(days[k] && days[k].mine && days[k].ta) };
+  },
+
   // ---------- 界面 ----------
   _openPast: false,
   togglePast: function() { this._openPast = !this._openPast; this.render(); },
+
+  // 两个交叠的心（手绘 SVG，不用 emoji，避免各机型配色不一）
+  _hearts: function() {
+    var d = 'M12 20.35l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.54L12 20.35z';
+    return '<svg class="dc-hearts" width="32" height="22" viewBox="0 0 32 22" aria-hidden="true" focusable="false">' +
+      '<path d="' + d + '" fill="#E8B88A" opacity="0.45" transform="translate(9.6 3) scale(0.78)"/>' +
+      '<path d="' + d + '" fill="#E5989B" transform="translate(2.4 2.6) scale(0.8)"/>' +
+      '</svg>';
+  },
 
   render: function() {
     var el = document.getElementById('daily-section');
@@ -188,58 +266,69 @@ var Daily = {
     var k = this._key(), rec = this._day(k);
     var paired = (typeof Sync !== 'undefined' && !!Sync.partnerId);
     var pn = localStorage.getItem('sync_partnerName') || 'TA';
-    var streak = this._streak(), both = this._bothDays();
 
-    var html = '<div class="card daily-card">';
-    html += '<div class="daily-head"><div class="card-title" style="margin:0">📅 每日一题</div>';
-    html += '<span class="daily-streak">' + (streak > 0 ? '连续 ' + streak + ' 天 🔥' : '今天还没打卡') + '</span></div>';
-    html += '<div class="daily-cat">' + formatMonthDay(new Date()) + ' · ' + escapeHtml(rec.cat || '') + '</div>';
-    html += '<div class="daily-q">' + escapeHtml(rec.q || '') + '</div>';
+    var h = '<div class="card daily-card">';
 
-    // 我的回答
-    if (rec.mine) {
-      html += '<div class="daily-ans mine"><div class="daily-ans-who">我的回答' +
-        '<button class="btn-text daily-edit" onclick="Daily.reAnswer()">改</button></div>' +
-        '<div class="daily-ans-text">' + escapeHtml(rec.mine.text) + '</div></div>';
-    } else if (!paired) {
-      html += '<p class="empty-hint">和 TA 连接之后，这里每天都会出现一道题</p>';
+    // 顶部：邮票样式的贴纸（不再是「今天还没打卡」那种打卡味）
+    h += '<div class="dc-head"><span class="dc-stamp">' + escapeHtml(formatMonthDay(new Date())) + ' · 心里话</span></div>';
+
+    // 问题区：没拆过就被色块盖住
+    if (rec.opened) {
+      h += '<div class="dc-question">' + escapeHtml(rec.q || '') + '</div>';
     } else {
-      html += '<textarea id="daily-input" class="entry-textarea" rows="2" placeholder="写下你的回答…（提交后 TA 答完就能互相看到）"></textarea>';
-      html += '<div style="text-align:right;margin-top:8px"><button class="btn-primary" onclick="Daily.answer(document.getElementById(\'daily-input\').value)">提交回答</button></div>';
+      h += '<div class="dc-scratch" id="dc-scratch" onclick="Daily.reveal()"><span class="dc-scratch-txt">轻触开启今日密信 ✉️</span></div>';
     }
 
-    // TA 的回答
-    if (rec.mine && paired) {
-      if (rec.ta) {
-        html += '<div class="daily-ans ta"><div class="daily-ans-who">' + escapeHtml(pn) + '的回答</div>' +
-          '<div class="daily-ans-text">' + escapeHtml(rec.ta.text) + '</div></div>';
+    // 回答区
+    if (rec.opened) {
+      if (rec.mine) {
+        h += '<div class="dc-sealed" onclick="Daily.openSheet()">' +
+          '<span class="dc-sealed-txt">' + escapeHtml(rec.mine.text) + '</span>' +
+          '<span class="dc-sealed-tag">已封存</span></div>';
+      } else if (!paired) {
+        h += '<p class="dc-note">和 TA 连接之后，这封信才能寄出去</p>';
       } else {
-        html += '<div class="daily-wait">⏳ 等 ' + escapeHtml(pn) + ' 回答…</div>';
+        h += '<div class="dc-write" onclick="Daily.openSheet()">点击此处写下回答...</div>';
       }
     }
 
-    // 往期
+    // TA 的回信（要等我先封存，免得互相影响）
+    if (rec.mine && paired) {
+      if (rec.ta) {
+        h += '<div class="dc-from-ta"><span class="dc-from-ta-who">' + escapeHtml(pn) + ' 的回信</span>' +
+          '<div class="dc-from-ta-text">' + escapeHtml(rec.ta.text) + '</div></div>';
+      } else {
+        h += '<p class="dc-note">等 ' + escapeHtml(pn) + ' 拆开今天的信…</p>';
+      }
+    }
+
+    // 往期密信
     var m = this._all(), past = [];
     for (var dk in m) { if (dk !== k && (m[dk].mine || m[dk].ta)) past.push(dk); }
     past.sort().reverse();
     if (past.length) {
-      html += '<div class="daily-past-head" onclick="Daily.togglePast()">' + (this._openPast ? '▼' : '▶') + ' 往期回顾（' + past.length + ' 天）</div>';
+      h += '<div class="dc-past-head" onclick="Daily.togglePast()">' +
+        (this._openPast ? '收起往期密信' : '往期密信 · ' + past.length + ' 封') + '</div>';
       if (this._openPast) {
-        html += '<div class="daily-past">';
+        h += '<div class="dc-past">';
         for (var i = 0; i < past.length && i < 60; i++) {
           var p = m[past[i]];
-          html += '<div class="daily-past-item"><div class="daily-past-date">' + escapeHtml(past[i]) + (p.cat ? ' · ' + escapeHtml(p.cat) : '') + '</div>' +
-            '<div class="daily-past-q">' + escapeHtml(p.q || '') + '</div>' +
-            '<div class="daily-past-a"><span class="daily-tag">我</span>' + (p.mine ? escapeHtml(p.mine.text) : '<i>没答</i>') + '</div>' +
-            '<div class="daily-past-a"><span class="daily-tag ta">' + escapeHtml(pn) + '</span>' + (p.ta ? escapeHtml(p.ta.text) : '<i>没答</i>') + '</div></div>';
+          h += '<div class="dc-past-item"><div class="dc-past-date">' + escapeHtml(past[i]) + '</div>' +
+            '<div class="dc-past-q">' + escapeHtml(p.q || '') + '</div>' +
+            '<div class="dc-past-a"><span class="dc-tag">我</span>' + (p.mine ? escapeHtml(p.mine.text) : '<i>没写</i>') + '</div>' +
+            '<div class="dc-past-a"><span class="dc-tag ta">' + escapeHtml(pn) + '</span>' + (p.ta ? escapeHtml(p.ta.text) : '<i>没写</i>') + '</div></div>';
         }
-        html += '</div>';
+        h += '</div>';
       }
     }
 
-    html += '<div class="daily-foot">你们已经一起回答了 ' + both + ' 天 💞</div>';
-    html += '</div>';
-    el.innerHTML = html;
+    // 底部：交叠的心 + 默契值（真的会涨：双方都回信的那天才 +1）
+    var tk = this.tacit();
+    h += '<div class="dc-foot">' + this._hearts() +
+      '<span class="dc-foot-txt">默契值 ' + tk.total + '</span>' +
+      (tk.todayDone ? '<span class="dc-foot-up">今天 +1</span>' : '') + '</div>';
+    h += '</div>';
+    el.innerHTML = h;
   },
 
   init: function() { this.render(); }
