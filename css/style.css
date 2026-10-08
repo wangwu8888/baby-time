@@ -28,28 +28,68 @@
 #mood-note-modal:not(.hidden) .mood-note-backdrop{animation:moodNoteFade 0.2s ease}
 #mood-note-modal:not(.hidden) .mood-note-pop{animation:moodNoteIn 0.24s cubic-bezier(0.34,1.4,0.64,1)}
 
-.daily-card .daily-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+/* 时光胶囊复用这两个类名，保留 */
+.daily-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .daily-streak{font-size:11px;color:#B0733F;background:#FBF2E7;border-radius:10px;padding:2px 9px;font-weight:500}
 .daily-streak.ready{color:#2F7D4F;background:#E9F6EE}
-.daily-cat{font-size:11px;color:var(--text-dim);margin-bottom:6px}
-.daily-q{font-size:15px;line-height:1.6;font-weight:500;color:var(--text-primary);background:var(--bg-secondary);border-radius:12px;padding:12px 14px;margin-bottom:12px}
-.daily-ans{margin-top:10px;border-left:3px solid var(--border);padding-left:10px}
-.daily-ans.mine{border-left-color:var(--accent-warm)}
-.daily-ans.ta{border-left-color:#8CB3D9}
-.daily-ans-who{font-size:11px;color:var(--text-dim);margin-bottom:3px;display:flex;align-items:center;gap:6px}
-.daily-edit{font-size:11px!important;padding:0!important}
-.daily-ans-text{font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text-primary)}
-.daily-wait{font-size:13px;color:var(--text-dim);margin-top:10px;padding-left:10px}
-.daily-past-head{font-size:12px;color:var(--text-secondary);margin-top:14px;padding-top:10px;border-top:1px solid var(--border);cursor:pointer}
-.daily-past{margin-top:8px;max-height:320px;overflow-y:auto}
-.daily-past-item{padding:10px 0;border-bottom:1px solid var(--border)}
-.daily-past-item:last-child{border-bottom:none}
-.daily-past-date{font-size:11px;color:var(--text-dim);margin-bottom:3px}
-.daily-past-q{font-size:13px;font-weight:500;margin-bottom:5px;color:var(--text-primary)}
-.daily-past-a{font-size:13px;line-height:1.5;color:var(--text-primary);margin-bottom:3px;word-break:break-word}
-.daily-tag{display:inline-block;font-size:10px;color:#B0733F;background:#FBF2E7;border-radius:8px;padding:1px 6px;margin-right:6px;vertical-align:1px}
-.daily-tag.ta{color:#4A7396;background:#EAF1F8}
-.daily-foot{font-size:11px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border)}
+
+/* ==================== v120：每日一题（密信盲盒风） ==================== */
+/* 卡片 = 一封复古信封/明信片 */
+.daily-card{background:#FAF7F5;border:1px solid #F0E9E4;border-radius:20px;box-shadow:0 6px 22px rgba(170,128,116,0.10);padding:18px 18px 16px}
+.dc-head{display:flex;margin-bottom:14px}
+/* 邮票贴纸 */
+.dc-stamp{display:inline-block;padding:6px 11px;background:#FFFDFB;border:1px dashed #E7CFC6;border-radius:5px;font-size:11px;letter-spacing:0.4px;color:#A98A80;transform:rotate(-2.4deg);box-shadow:0 2px 6px rgba(170,128,116,0.10)}
+/* 盲盒：盖住问题的色块 */
+.dc-scratch{position:relative;min-height:108px;display:flex;align-items:center;justify-content:center;background:#FDF0F0;border-radius:16px;cursor:pointer;overflow:hidden;transition:opacity 0.3s ease,transform 0.3s ease;-webkit-tap-highlight-color:transparent}
+.dc-scratch::after{content:'';position:absolute;inset:6px;border:1px dashed rgba(229,152,155,0.55);border-radius:11px;pointer-events:none}
+.dc-scratch-txt{font-size:13px;color:#C08A8C;letter-spacing:0.3px}
+.dc-scratch.dc-opening{opacity:0;transform:scale(0.96)}
+/* 刮开后浮现的问题：衬线 + 斜体，居中，上下留白 */
+.dc-question{font-family:Georgia,'Times New Roman','Songti SC','STSong','Noto Serif SC',serif;font-style:italic;font-size:17px;line-height:1.9;text-align:center;color:#4A4340;padding:24px 14px;animation:dcQIn 0.5s ease both}
+@keyframes dcQIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* 写回信的入口（一行轻提示，不是大按钮） */
+.dc-write{margin-top:2px;padding:13px 16px;border-radius:14px;background:#fff;border:1px dashed #E7DCD6;font-size:14px;color:#B3A49D;text-align:center;cursor:pointer;transition:border-color 0.2s}
+.dc-write:active{border-color:#E5989B}
+/* 封存后的回执卡 */
+.dc-sealed{margin-top:2px;padding:14px 16px;border-radius:14px;background:#fff;border:1px solid #F2EAE6;cursor:pointer}
+.dc-sealed-txt{display:block;font-size:14.5px;line-height:1.7;color:#4A4340;white-space:pre-wrap;word-break:break-word}
+.dc-sealed-tag{display:inline-block;margin-top:8px;font-size:10px;letter-spacing:0.5px;color:#C08A8C;background:#FDF0F0;border-radius:9px;padding:2px 8px}
+/* TA 的回信 */
+.dc-from-ta{margin-top:14px;padding-top:12px;border-top:1px dashed #EFE3DD}
+.dc-from-ta-who{display:block;font-size:11px;color:#B3A49D;margin-bottom:6px}
+.dc-from-ta-text{font-size:14px;line-height:1.7;color:#4A4340;white-space:pre-wrap;word-break:break-word}
+.dc-note{font-size:12.5px;color:#B3A49D;margin-top:10px;text-align:center}
+/* 往期密信 */
+.dc-past-head{font-size:12px;color:#B3A49D;margin-top:16px;padding-top:12px;border-top:1px dashed #EFE3DD;cursor:pointer;text-align:center}
+.dc-past{margin-top:10px;max-height:300px;overflow-y:auto}
+.dc-past-item{padding:11px 0;border-bottom:1px dashed #F2EAE6}
+.dc-past-item:last-child{border-bottom:none}
+.dc-past-date{font-size:11px;color:#B3A49D;margin-bottom:4px}
+.dc-past-q{font-family:Georgia,'Songti SC','STSong',serif;font-style:italic;font-size:13px;line-height:1.7;color:#6B625D;margin-bottom:6px}
+.dc-past-a{font-size:13px;line-height:1.6;color:#4A4340;margin-bottom:4px;word-break:break-word}
+.dc-tag{display:inline-block;font-size:10px;color:#C08A8C;background:#FDF0F0;border-radius:8px;padding:1px 7px;margin-right:6px;vertical-align:1px}
+.dc-tag.ta{color:#9C8BA8;background:#F5F0F7}
+/* 底部：交叠的心 + 默契值（原打卡天数已去掉） */
+.dc-foot{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;padding-top:13px;border-top:1px dashed #EFE3DD}
+.dc-hearts{display:block}
+.dc-foot-txt{font-size:12px;color:#B3A49D;letter-spacing:0.3px}
+/* 今天双方都回信了 → 亮一个小小的「今天 +1」 */
+.dc-foot-up{font-size:11px;font-weight:600;color:#E0727A;background:#FDECEE;border-radius:9px;padding:2px 7px;letter-spacing:0.2px}
+
+/* ---- v120：写信用的底部弹窗（Bottom Sheet）---- */
+.dc-sheet{position:fixed;inset:0;z-index:210;display:flex;align-items:flex-end;justify-content:center}
+.dc-sheet-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.38);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:dcFade 0.22s ease}
+.dc-sheet-panel{position:relative;width:100%;max-width:480px;background:#fff;border-radius:22px 22px 0 0;padding:20px 20px calc(18px + var(--safe-bottom));box-shadow:0 -6px 28px rgba(0,0,0,0.14);animation:dcSheetUp 0.3s cubic-bezier(0.34,1.2,0.64,1)}
+.dc-sheet-q{font-size:12px;line-height:1.6;color:#B3A49D;text-align:center;padding:0 6px 14px;border-bottom:1px dashed #F2EAE6;margin-bottom:14px}
+/* 纯白无边框的书写区（不再是灰色大框） */
+.dc-sheet-ta{display:block;width:100%;min-height:132px;border:none;background:transparent;padding:0 2px;font-family:var(--font);font-size:16px;line-height:1.85;color:#3D3D3D;resize:none;outline:none;user-select:text;-webkit-user-select:text}
+.dc-sheet-ta::placeholder{color:#CFC5BF}
+.dc-seal-btn{display:block;width:100%;margin-top:16px;padding:14px 0;border:none;border-radius:999px;background:#E5989B;color:#fff;font-family:var(--font);font-size:15.5px;font-weight:500;letter-spacing:0.5px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s,opacity 0.15s}
+.dc-seal-btn:active{transform:scale(0.98);opacity:0.9}
+@keyframes dcFade{from{opacity:0}to{opacity:1}}
+@keyframes dcSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+#daily-sheet:not(.hidden) .dc-sheet-backdrop{animation:dcFade 0.22s ease}
+#daily-sheet:not(.hidden) .dc-sheet-panel{animation:dcSheetUp 0.3s cubic-bezier(0.34,1.2,0.64,1)}
 
 .capsule-form{margin-bottom:12px}
 .capsule-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
