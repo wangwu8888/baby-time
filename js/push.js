@@ -80,17 +80,6 @@ var Push = {
     if (s) s.textContent = this.soundOn() ? '提示音 开 🔊' : '提示音 关 🔇';
   },
 
-  // 从设置页点「发个测试通知」
-  test: function() {
-    var self = this;
-    if (!this.enabled()) { showToast('先开启通知吧'); return; }
-    if (this.permission() !== 'granted') { showToast('浏览器还没给通知权限'); return; }
-    this._unlockAudio(); this.beep();
-    // 测试时无视「页面可见就不打扰」的规则，否则点了没反应
-    this._show('心情气象台', '这是一条测试通知，能收到就说明设置成功 ✅', 'push-test', true);
-    showToast('已发出测试通知');
-  },
-
   // ============ 对外：提醒 ============
 
   // 新消息（文字 / 涂鸦）

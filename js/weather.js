@@ -160,26 +160,58 @@ _showFull:function(src){
   d.addEventListener('click',function(){d.remove()});document.body.appendChild(d);
 },
 
-renderMyMood:function(){var m=Sync.myMood||getMoodState('me');if(m.message===undefined&&Sync.myMood&&Sync.myMood.note!==undefined)m.message=Sync.myMood.note||'';if(typeof m.message!=='string')m.message='';var c=MOOD_CONFIG[m.status]||MOOD_CONFIG.sunny;this.activeMood=m.status;var ie=document.getElementById('mood3d-icon');if(ie)ie.textContent=c.icon;var le=document.getElementById('mood3d-label');if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){os[i].classList.toggle('selected',os[i].getAttribute('data-mood')===this.activeMood)}var nd=document.getElementById('mood-note-display');if(nd){var nt=m.message||'';nd.innerHTML=nt?('<span class="mood-note-text">✎ '+escapeHtml(nt)+'</span><button class="mood-note-clear" title="清除备注" onclick="Weather.clearMoodNote()">✕</button>'):''}},
-// ==================== v118: 心情备注 ====================
+renderMyMood:function(){var m=Sync.myMood||getMoodState('me');if(m.message===undefined&&Sync.myMood&&Sync.myMood.note!==undefined)m.message=Sync.myMood.note||'';if(typeof m.message!=='string')m.message='';var c=MOOD_CONFIG[m.status]||MOOD_CONFIG.sunny;this.activeMood=m.status;var ie=document.getElementById('mood3d-icon');if(ie)ie.textContent=c.icon;var le=document.getElementById('mood3d-label');if(le)le.textContent=c.label;var os=document.querySelectorAll('.mood3d-opt');for(var i=0;i<os.length;i++){os[i].classList.toggle('selected',os[i].getAttribute('data-mood')===this.activeMood)}var nd=document.getElementById('mood-note-display');if(nd){var nt=this._myNote();nd.innerHTML=nt?('<div class="mood-note-show" onclick="Weather.openMoodNote()"><span class="mood-note-show-emoji">'+c.icon+'</span><span class="mood-note-show-text"><b class="mood-note-show-label">'+escapeHtml(c.label)+'</b>：'+escapeHtml(nt)+'</span><button class="mood-note-show-clear" title="清除备注" onclick="event.stopPropagation();Weather.clearMoodNote()">✕</button></div>'):''}},
+// ==================== v119: 心情备注（弹窗化） ====================
 // 备注只随 mood_change 消息同步（moods 表没有备注列，不动数据库）。
 // 自己的一侧还存在 localStorage 的 moodState_me.message，刷新不丢。
+_myNote:function(){
+  var m=(typeof Sync!=='undefined'&&Sync.myMood)?Sync.myMood:getMoodState('me');
+  var t=m?(m.message!==undefined?m.message:m.note):'';
+  return typeof t==='string'?t:'';
+},
+
+// 打开备注弹窗：点天气图标时自动弹出；点展示卡也能进来改
+openMoodNote:function(st){
+  var modal=document.getElementById('mood-note-modal');if(!modal)return;
+  if(st)this.activeMood=st;
+  var cur=this.activeMood||(typeof Sync!=='undefined'&&Sync.myMood&&Sync.myMood.status)||'sunny';
+  var c=MOOD_CONFIG[cur]||MOOD_CONFIG.sunny;
+  var em=document.getElementById('mood-note-pop-emoji');if(em)em.textContent=c.icon;
+  var lb=document.getElementById('mood-note-pop-label');if(lb)lb.textContent=c.label;
+  var ta=document.getElementById('mood-note-text');if(ta)ta.value=this._myNote();
+  modal.classList.remove('hidden');
+  // 等入场动效起帧后再聚焦，否则移动端键盘弹不出来
+  setTimeout(function(){
+    if(!ta)return;
+    ta.focus();
+    try{ta.setSelectionRange(ta.value.length,ta.value.length)}catch(e){}
+  },80);
+},
+
+closeMoodNote:function(){
+  var modal=document.getElementById('mood-note-modal');if(!modal)return;
+  var ta=document.getElementById('mood-note-text');if(ta)ta.blur();
+  modal.classList.add('hidden');
+},
+
+// 保存：有内容就存，清空后保存＝删掉备注（主界面展示卡随之消失）
 saveMoodNote:function(){
-  var ni=document.getElementById('mood-note-input');if(!ni)return;
-  var t=ni.value.trim();
-  if(!t){showToast('写一句备注再保存吧');return}
   if(typeof Sync==='undefined'||!Sync.userId){showToast('还在初始化，稍等一下');return}
+  var ta=document.getElementById('mood-note-text');
+  var t=ta?ta.value.trim():'';
   var st=this.activeMood||(Sync.myMood&&Sync.myMood.status)||'sunny';
   Sync.updateMood(st,t);
-  ni.value='';
+  this.closeMoodNote();
   this.renderMyMood();
-  showToast(Sync.partnerId?'备注已保存，TA 能看到 ✎':'已记录，配对后 TA 就能看到 ✎');
+  if(!t)showToast('备注已清除');
+  else showToast(Sync.partnerId?'备注已保存，TA 能看到 ✎':'已记录，配对后 TA 就能看到 ✎');
 },
 
 clearMoodNote:function(){
   if(typeof Sync==='undefined'||!Sync.userId)return;
   var st=this.activeMood||(Sync.myMood&&Sync.myMood.status)||'sunny';
   Sync.updateMood(st,'');
+  var ta=document.getElementById('mood-note-text');if(ta)ta.value='';
   this.renderMyMood();
   showToast('备注已清除');
 },
@@ -194,7 +226,7 @@ _noteFor:function(sender){
   return '';
 },
 
-renderPartnerMood:function(){var pm=Sync.partnerMood||getMoodState('ta');var c=MOOD_CONFIG[pm.status]||MOOD_CONFIG.sunny;var pie=document.getElementById('partner-mood-icon');if(pie)pie.textContent=c.icon;var ple=document.getElementById('partner-mood-label');if(ple)ple.textContent=c.label;var pn=this._partnerName();var t=document.getElementById('partner-mood-title');if(t)t.textContent=pn+'的心情';var u=document.getElementById('partner-mood-updated');if(u)u.textContent=pm.updatedAt?formatDate(pm.updatedAt)+' '+formatTime(pm.updatedAt)+' 更新':'尚未更新';var ne=document.getElementById('partner-mood-note');if(ne){var nt=this._noteFor('partner');ne.innerHTML=nt?'<span class="partner-note">✎ '+escapeHtml(nt)+'</span>':''}},
+renderPartnerMood:function(){var pm=Sync.partnerMood||getMoodState('ta');var c=MOOD_CONFIG[pm.status]||MOOD_CONFIG.sunny;var pie=document.getElementById('partner-mood-icon');if(pie)pie.textContent=c.icon;var ple=document.getElementById('partner-mood-label');if(ple)ple.textContent=c.label;var pn=this._partnerName();var t=document.getElementById('partner-mood-title');if(t)t.textContent=pn+'的心情';var u=document.getElementById('partner-mood-updated');if(u)u.textContent=pm.updatedAt?formatDate(pm.updatedAt)+' '+formatTime(pm.updatedAt)+' 更新':'尚未更新';var ne=document.getElementById('partner-mood-note');if(ne){var nt=this._noteFor('partner');ne.innerHTML=nt?('<div class="partner-note">'+escapeHtml(nt)+'</div>'):''}},
 renderRoomBadge:function(){var b=document.getElementById('room-badge');if(!b)return;if(Sync.roomCode){b.textContent=(Sync.partnerId?'💞':'⏳')+' #'+Sync.roomCode;b.style.display='inline'}else{b.style.display='none'}},
 _partnerName:function(){return localStorage.getItem('sync_partnerName')||'TA'},
 _getTogetherDays:function(){
