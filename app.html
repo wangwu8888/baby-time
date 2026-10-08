@@ -80,7 +80,7 @@
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">提示音</div><div class="setting-desc">收到新消息时响一声</div></div><button class="btn-text" id="setting-push-sound" onclick="Push.toggleSound()">提示音 开 🔊</button></div>
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">清除本地数据</div><div class="setting-desc">删除本地记录、涂鸦和设置</div></div><button class="btn-text btn-danger" onclick="clearAllData()">清除</button></div>
 </div>
-<p class="version-info">心情气象台 v119</p>
+<p class="version-info">心情气象台 v121</p>
 </div>
 
 <nav class="tab-bar">
@@ -184,23 +184,32 @@
 </div>
 </div>
 
+<div id="daily-sheet" class="dc-sheet hidden">
+<div class="dc-sheet-backdrop" onclick="Daily.closeSheet(true)"></div>
+<div class="dc-sheet-panel">
+<div class="dc-sheet-q" id="ds-question"></div>
+<textarea id="ds-text" class="dc-sheet-ta" maxlength="300" placeholder="写点什么…"></textarea>
+<button class="dc-seal-btn" onclick="Daily.seal()">封存这封信</button>
+</div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 
-<script src="js/utils.js?v=119"></script>
-<script src="js/qrdecode.js?v=119"></script>
-<script src="js/storage.js?v=119"></script>
-<script src="js/supabase.js?v=119"></script>
-<script src="js/crypto.js?v=119"></script>
-<script src="js/sync.js?v=119"></script>
-<script src="js/weather.js?v=119"></script>
-<script src="js/treehole.js?v=119"></script>
-<script src="js/doodle.js?v=119"></script>
-<script src="js/care.js?v=119"></script>
-<script src="js/crane.js?v=119"></script>
-<script src="js/weekly.js?v=119"></script>
-<script src="js/push.js?v=119"></script>
-<script src="js/daily.js?v=119"></script>
-<script src="js/capsule.js?v=119"></script>
-<script src="js/app.js?v=119"></script>
+<script src="js/utils.js?v=120"></script>
+<script src="js/qrdecode.js?v=120"></script>
+<script src="js/storage.js?v=120"></script>
+<script src="js/supabase.js?v=120"></script>
+<script src="js/crypto.js?v=120"></script>
+<script src="js/sync.js?v=120"></script>
+<script src="js/weather.js?v=120"></script>
+<script src="js/treehole.js?v=120"></script>
+<script src="js/doodle.js?v=120"></script>
+<script src="js/care.js?v=120"></script>
+<script src="js/crane.js?v=120"></script>
+<script src="js/weekly.js?v=120"></script>
+<script src="js/push.js?v=120"></script>
+<script src="js/daily.js?v=120"></script>
+<script src="js/capsule.js?v=120"></script>
+<script src="js/app.js?v=120"></script>
 </body>
 </html>
