@@ -1,1 +1,1 @@
-{"name":"心情气象台","short_name":"气象台","start_url":".","display":"standalone","background_color":"#FAFAF8","theme_color":"#FAFAF8"}
+{"name":"心情气象台","short_name":"气象台","start_url":".","display":"standalone","background_color":"#FAFAF8","theme_color":"#FAFAF8","description":"两个人的心情小屋","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
