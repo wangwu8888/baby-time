@@ -13,6 +13,8 @@
 <title>心情气象台</title>
 <script>console.log('v3 loaded');document.body.style.background='#FFF7ED';</script>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -40,12 +42,20 @@
 <div class="mood3d-opt" data-mood="love" onclick="pickMood('love')"><span>❤️</span><span>爱心</span></div>
 <div class="mood3d-opt" data-mood="dnd" onclick="pickMood('dnd')"><span>🔕</span><span>勿扰</span></div>
 </div>
+<div class="mood-note-row">
+<input id="mood-note-input" class="mood-note-input" maxlength="60" placeholder="给今天的心情加一句备注…" onkeydown="if(event.key==='Enter')Weather.saveMoodNote()">
+<button class="btn-text" onclick="Weather.saveMoodNote()">保存</button>
 </div>
+<div class="mood-note-display" id="mood-note-display"></div>
+</div>
+
+<div id="daily-section"></div>
 
 <div class="card" id="crane-jar-card" style="display:none"></div>
 <div class="card partner-mood-card" id="partner-card" style="display:none">
 <div class="card-title" id="partner-mood-title">TA的心情</div>
 <div class="partner-mood-display"><span class="partner-mood-icon" id="partner-mood-icon">☀️</span><div><div class="partner-mood-label" id="partner-mood-label">晴朗</div><div class="partner-mood-updated" id="partner-mood-updated">尚未更新</div></div></div>
+<div class="partner-mood-note" id="partner-mood-note"></div>
 </div>
 
 <div class="card" id="invite-card" style="display:none"></div>
@@ -59,6 +69,7 @@
 <div id="view-treehole" class="view">
 <header class="view-header"><h1>树洞</h1><span class="header-subtitle">你的私密空间</span></header>
 <div id="shared-diary-section"></div>
+<div id="capsule-section"></div>
 <div id="diary-section"></div>
 <div id="memorial-section"></div>
 </div>
@@ -69,9 +80,12 @@
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">TA的称呼</div><div class="setting-desc" id="setting-partner-name"></div></div><button class="btn-text" onclick="editPartnerName()">修改</button></div>
 <div class="card setting-item" id="setting-pair"><div class="setting-info"><div class="setting-label">连接TA</div><div class="setting-desc">创建或加入房间</div></div><button class="btn-text" onclick="openPairing()">去连接</button></div>
 <div class="card setting-item" id="setting-room" style="display:none"><div class="setting-info"><div class="setting-label">房间号</div><div class="setting-desc" id="setting-room-code"></div></div><button class="btn-text btn-danger" onclick="leaveAndReset()">退出房间</button></div>
+<div class="card setting-item"><div class="setting-info"><div class="setting-label">新消息提醒</div><div class="setting-desc" id="setting-push-desc">已关闭</div></div><button class="btn-text" id="setting-push-btn" onclick="Push.toggle()">开启</button></div>
+<div class="card setting-item"><div class="setting-info"><div class="setting-label">提示音</div><div class="setting-desc">收到新消息时响一声</div></div><button class="btn-text" id="setting-push-sound" onclick="Push.toggleSound()">提示音 开 🔊</button></div>
+<div class="card setting-item"><div class="setting-info"><div class="setting-label">测试通知</div><div class="setting-desc">点一下看看能不能收到</div></div><button class="btn-text" onclick="Push.test()">发一条</button></div>
 <div class="card setting-item"><div class="setting-info"><div class="setting-label">清除本地数据</div><div class="setting-desc">删除本地记录、涂鸦和设置</div></div><button class="btn-text btn-danger" onclick="clearAllData()">清除</button></div>
 </div>
-<p class="version-info">心情气象台 v116</p>
+<p class="version-info">心情气象台 v118</p>
 </div>
 
 <nav class="tab-bar">
@@ -117,6 +131,7 @@
 <div id="pairing-options" style="padding:24px 20px;display:flex;flex-direction:column;gap:12px">
 <div class="send-option-card" onclick="showCreateRoom()"><span class="send-opt-icon">🏗️</span><span class="send-opt-label">创建房间</span></div>
 <div class="send-option-card" onclick="showJoinRoom()"><span class="send-opt-icon">🔑</span><span class="send-opt-label">加入房间</span></div>
+<div class="send-option-card" onclick="openScanJoin()"><span class="send-opt-icon">📷</span><span class="send-opt-label">扫码进TA的房间</span></div>
 </div>
 <div id="pairing-create" class="hidden" style="padding:24px 20px">
 <input type="password" id="create-password" class="auth-input" placeholder="设置房间密码（至少8位，别用生日和重复数字）" maxlength="20">
@@ -126,17 +141,33 @@
 <div class="auth-waiting-icon">💫</div>
 <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">等待TA加入…</p>
 <div class="my-code-box"><span>房间号</span><strong id="room-code-display" style="cursor:pointer" title="点击复制" onclick="copyRoomCode()"></strong><div id="copy-hint" style="font-size:11px;color:var(--accent-green);margin-top:4px;display:none">已复制！</div></div>
-<p style="font-size:12px;color:var(--text-secondary)">把房间号和密码发给TA</p>
+<div style="margin:14px 0 6px;font-size:13px;font-weight:600">让TA扫这个码直接进</div>
+<div id="pair-qr" style="display:flex;justify-content:center;background:#fff;border-radius:12px;padding:10px;width:fit-content;margin:0 auto"></div>
+<p style="font-size:12px;color:var(--text-secondary);margin-top:8px">TA扫码后会直接跳到加入页，房间号已填好，只要输密码</p>
+<button class="btn-secondary btn-full" style="margin-top:10px" onclick="shareInviteLink()">🔗 复制邀请链接</button>
+<p style="font-size:12px;color:var(--text-secondary);margin-top:10px">也可以手动把房间号和密码发给TA</p>
 <button class="btn-text" onclick="cancelCreate()">取消</button>
 </div>
 <button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
 </div>
 <div id="pairing-join" class="hidden" style="padding:24px 20px">
+<p id="join-invite-hint" class="hidden" style="font-size:13px;color:var(--accent-green);margin-bottom:8px">💌 已从邀请链接读到房间号，输入密码即可</p>
 <input type="text" id="join-code" class="auth-input" placeholder="输入房间号" maxlength="10" style="text-transform:uppercase">
 <input type="password" id="join-password" class="auth-input" placeholder="输入房间密码" maxlength="20">
 <p class="auth-error" id="join-error"></p>
 <button class="btn-primary btn-full" onclick="doJoinRoom()">加入</button>
+<button class="btn-text" onclick="startScan()" style="margin-top:8px">📷 用相机扫码</button>
 <button class="btn-text" onclick="showPairingOptions()" style="margin-top:8px">← 返回</button>
+</div>
+<div id="pairing-scan" class="hidden" style="padding:24px 20px;text-align:center">
+<div style="position:relative;width:100%;max-width:260px;margin:0 auto;border-radius:14px;overflow:hidden;background:#000">
+<video id="scan-video" playsinline muted style="width:100%;display:block"></video>
+</div>
+<p id="scan-hint" style="font-size:12px;color:var(--text-secondary);margin-top:10px">把TA屏幕上的二维码放进框里</p>
+<p class="auth-error" id="scan-error"></p>
+<input type="file" id="scan-file" accept="image/*" class="hidden">
+<button class="btn-secondary btn-full" onclick="document.getElementById('scan-file').click()" style="margin-top:6px">从相册选二维码</button>
+<button class="btn-text" onclick="stopScan();showJoinRoom()" style="margin-top:8px">← 返回</button>
 </div>
 </div>
 
@@ -147,18 +178,21 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="js/utils.js?v=116"></script>
-<script src="js/qrdecode.js?v=116"></script>
-<script src="js/storage.js?v=116"></script>
-<script src="js/supabase.js?v=116"></script>
-<script src="js/crypto.js?v=116"></script>
-<script src="js/sync.js?v=116"></script>
-<script src="js/weather.js?v=116"></script>
-<script src="js/treehole.js?v=116"></script>
-<script src="js/doodle.js?v=116"></script>
-<script src="js/care.js?v=116"></script>
-<script src="js/crane.js?v=116"></script>
-<script src="js/weekly.js?v=116"></script>
-<script src="js/app.js?v=116"></script>
+<script src="js/utils.js?v=118"></script>
+<script src="js/qrdecode.js?v=118"></script>
+<script src="js/storage.js?v=118"></script>
+<script src="js/supabase.js?v=118"></script>
+<script src="js/crypto.js?v=118"></script>
+<script src="js/sync.js?v=118"></script>
+<script src="js/weather.js?v=118"></script>
+<script src="js/treehole.js?v=118"></script>
+<script src="js/doodle.js?v=118"></script>
+<script src="js/care.js?v=118"></script>
+<script src="js/crane.js?v=118"></script>
+<script src="js/weekly.js?v=118"></script>
+<script src="js/push.js?v=118"></script>
+<script src="js/daily.js?v=118"></script>
+<script src="js/capsule.js?v=118"></script>
+<script src="js/app.js?v=118"></script>
 </body>
 </html>
