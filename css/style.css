@@ -144,3 +144,49 @@
 .cn-reply.done{border-color:transparent;background:transparent;color:#B3A49D;cursor:default}
 @keyframes cnFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
+
+/* ==================== v127：账号登录 / 房间成员 ==================== */
+#screen-auth .auth-container h2{color:var(--text-primary)}
+#screen-auth .btn-text{font-weight:500}
+.member-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--border)}
+.member-row:last-child{border-bottom:none}
+.member-dot{width:9px;height:9px;border-radius:50%;background:var(--accent-blue);flex-shrink:0}
+.member-dot.me{background:var(--accent-green)}
+.member-name{flex:1;font-size:14px;color:var(--text-primary);word-break:break-word}
+.member-tag{font-size:11px;color:var(--accent-green);background:var(--bg-secondary);padding:2px 8px;border-radius:10px;flex-shrink:0}
+.member-tag.ta{color:var(--accent-warm)}
+
+/* ==================== v128：个人资料（头像 + 昵称） ==================== */
+.pf-avatar{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:50%;background:var(--bg-secondary);overflow:hidden;line-height:1}
+.pf-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.pf-emoji{display:block;width:100%;text-align:center}
+.pf-sm{width:30px;height:30px;font-size:17px}
+.pf-lg{width:52px;height:52px;font-size:28px}
+.pf-xl{width:88px;height:88px;font-size:46px;background:var(--bg-secondary)}
+.profile-card{margin-bottom:8px}
+.profile-card-main{display:flex;align-items:center;gap:12px}
+.profile-card-info{flex:1;min-width:0}
+.profile-card-name{font-size:16px;font-weight:600;color:var(--text-primary);word-break:break-word}
+.profile-card-mail{font-size:12px;color:var(--text-secondary);margin-top:3px;word-break:break-all}
+.pf-overlay{position:fixed;inset:0;z-index:260;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.35);backdrop-filter:blur(2px)}
+.pf-overlay.hidden{display:none}
+.pf-sheet{width:100%;max-width:480px;background:var(--bg-card);border-radius:20px 20px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));animation:pfUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes pfUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.pf-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border)}
+.pf-sheet-title{font-size:16px;font-weight:600}
+.pf-sheet-body{padding:18px 20px 4px}
+.pf-tip{font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:18px;line-height:1.5}
+.pf-avatar-pick{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px}
+.pf-upload-btn{font-size:13px;color:var(--accent-warm);border:1px solid var(--accent-warm);border-radius:999px;padding:5px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pf-pick-label{font-size:12px;color:var(--text-secondary);text-align:center;margin-bottom:8px}
+.pf-emoji-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:18px}
+.pf-emoji-opt{aspect-ratio:1;border:2px solid transparent;border-radius:12px;background:var(--bg-secondary);font-size:24px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s,border-color .15s}
+.pf-emoji-opt.active{border-color:var(--accent-warm);background:var(--bg-card);transform:scale(1.05)}
+.pf-skip{display:block;width:100%;text-align:center;background:none;border:none;color:var(--text-secondary);font-size:14px;font-family:var(--font);padding:14px 0 6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+/* ==================== v128：在线状态（头像绿点 + 成员状态字） ==================== */
+.pf-wrap{position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle}
+.pf-online{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:#b8b8bd;border:2px solid var(--bg-card);box-shadow:0 0 0 1px rgba(0,0,0,.04)}
+.pf-online.on{background:#34c759}
+.member-online{font-size:11px;color:#9a9aa0;flex-shrink:0;margin-right:2px}
+.member-online.on{color:#34c759}
