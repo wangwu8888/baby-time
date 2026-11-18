@@ -24,7 +24,62 @@ var SUPABASE = {
     },
     _clear: function() {
       this._tk = null; this._rt = null; this._exp = 0; this._uid = null;
+      this._ready = false; this._flow = null; this._waiters = [];
       try { localStorage.removeItem('sb_auth'); } catch (e) {}
+    },
+
+    // ===== v127 邮箱账号 =====
+    // hasSession(): 本地是否有可用的登录会话（供启动时判断是否要显示登录页）
+    hasSession: function() {
+      this._load();
+      return !!(this._rt && this._uid);
+    },
+
+    // signIn(email, pwd, cb) — 邮箱密码登录，cb(err)
+    signIn: function(email, pwd, cb) {
+      var self = this;
+      this._rawReq('POST', SUPABASE.URL + '/auth/v1/token?grant_type=password',
+        JSON.stringify({ email: email, password: pwd }), function(status, data) {
+          if (status === 200 && data && data.access_token && data.refresh_token) {
+            self._tk = data.access_token; self._rt = data.refresh_token;
+            self._exp = Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600000);
+            self._uid = (data.user && data.user.id) || self._uid;
+            self._save();
+            cb(null, data.user && data.user.email ? data.user.email : email);
+          } else {
+            var msg = '邮箱或密码错误';
+            try { if (data && data.msg) msg = data.msg; } catch (e) {}
+            cb(msg);
+          }
+        });
+    },
+
+    // signUp(email, pwd, cb) — 注册。若后台开了邮箱确认，返回 NEED_CONFIRM
+    signUp: function(email, pwd, cb) {
+      var self = this;
+      this._rawReq('POST', SUPABASE.URL + '/auth/v1/signup',
+        JSON.stringify({ email: email, password: pwd }), function(status, data) {
+          if (status === 200 && data && data.access_token && data.refresh_token) {
+            self._tk = data.access_token; self._rt = data.refresh_token;
+            self._exp = Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600000);
+            self._uid = (data.user && data.user.id) || self._uid;
+            self._save();
+            cb(null, null); // 直接登录成功
+          } else if (status === 200 && data && data.user && !data.access_token) {
+            cb('NEED_CONFIRM'); // 需去邮箱点确认
+          } else {
+            var msg = '注册失败';
+            try { if (data && data.msg) msg = data.msg; } catch (e) {}
+            if (/already registered|already exists/i.test(msg)) msg = 'ALREADY_EXISTS';
+            cb(msg);
+          }
+        });
+    },
+
+    // logout() — 退出登录：清会话（账号与云端数据保留，可重新登录恢复）
+    logout: function() {
+      this._clear();
+      try { localStorage.removeItem('account_email'); } catch (e) {}
     },
 
     _headers: function() {
@@ -76,10 +131,7 @@ var SUPABASE = {
           self2._save();
           // 立刻把已有 user_id（老设备升级场景）挂到身份映射表，
           // 写完（无论成败）才放行后续请求，避免 join_room 跑在映射前
-          var uid = null;
-          try { uid = localStorage.getItem('user_id'); } catch (e) {}
-          if (uid) self2.link(uid, function() { finish(null); });
-          else finish(null);
+          self2.bindIdentity(function() { finish(null); });
         } else {
           finish('auth failed: ' + status + ' ' + JSON.stringify(data).slice(0, 120));
         }
@@ -88,10 +140,7 @@ var SUPABASE = {
       if (this._rt) {
         // 有会话：token 还新鲜就直接用，否则刷新
         if (this._tk && this._exp - Date.now() > 60000) {
-          var uid0 = null;
-          try { uid0 = localStorage.getItem('user_id'); } catch (e) {}
-          if (uid0) this.link(uid0, function() { finish(null); });
-          else finish(null);
+          this.bindIdentity(function() { finish(null); });
         } else {
           this.refresh(function(ok) { if (ok) finish(null); else self2._signup(afterToken); });
         }
@@ -124,6 +173,32 @@ var SUPABASE = {
         });
     },
 
+    // ensureLocalUid(): 本地没有身份时生成一个（新设备首次登录场景）。
+    // 返回的 uid 会被 link() 反查/写入，与账号绑定。
+    ensureLocalUid: function() {
+      var uid = null;
+      try { uid = localStorage.getItem('user_id'); } catch (e) {}
+      if (!uid) {
+        uid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+        try { localStorage.setItem('user_id', uid); localStorage.setItem('sync_userId', uid); } catch (e) {}
+      }
+      return uid;
+    },
+
+    // bindIdentity(cb): 确保本地有 uid，并把它与当前账号绑定（反查优先），
+    // 完成后 cb。登录后调用，保证跨设备认领回同一个身份。
+    bindIdentity: function(cb) {
+      var self = this;
+      var uid = this.ensureLocalUid();
+      this.link(uid, function(ok, bound) {
+        if (typeof Sync !== 'undefined') Sync.userId = bound || uid;
+        cb && cb(bound || uid);
+      });
+    },
+
     // 把客户端 user_id（localStorage 里的老身份）挂到 auth.uid() 上。
     // RLS 的 current_client_uid() 靠这张表认人。幂等，可反复调用。
     // v116 修复：必须用登录后的 access_token 做 Bearer（不能用 anon key，
@@ -132,32 +207,53 @@ var SUPABASE = {
     // 这能自动修复「同一个匿名身份换了设备/清过数据后 user_id 变了」导致的
     // 映射错位——那种情况下所有写入都会被 RLS 判越权。
     link: function(clientUid, cb) {
-      if (!this._uid || !clientUid || !this._tk) { cb && cb(false); return; }
+      if (!this._uid || !this._tk) { cb && cb(false); return; }
       var self = this;
       var base = SUPABASE.URL + '/rest/v1/auth_links';
 
-      function send(method, url, body, done) {
+      function send(method, url, body, done, wantBody) {
         var x = new XMLHttpRequest();
         x.open(method, url, true);
         x.timeout = 8000;
-        var h = { 'apikey': SUPABASE.KEY, 'Authorization': 'Bearer ' + self._tk, 'Content-Type': 'application/json' };
+        var h = { 'apikey': SUPABASE.KEY, 'Authorization': 'Bearer ' + self._tk, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
         Object.keys(h).forEach(function(k) { x.setRequestHeader(k, h[k]); });
-        x.onload = function() { done(x.status); };
-        x.onerror = function() { done(0); };
-        x.ontimeout = function() { done(0); };
-        try { x.send(body ? JSON.stringify(body) : null); } catch (e) { done(0); }
+        x.onload = function() {
+          var data = null;
+          try { data = x.responseText ? JSON.parse(x.responseText) : null; } catch (e) {}
+          done(x.status, data);
+        };
+        x.onerror = function() { done(0, null); };
+        x.ontimeout = function() { done(0, null); };
+        try { x.send(body ? JSON.stringify(body) : null); } catch (e) { done(0, null); }
       }
 
-      send('POST', base, { auth_id: this._uid, user_id: clientUid }, function(st) {
-        if (st === 200 || st === 201) { cb && cb(true); return; }
-        if (st === 409) {
-          send('PATCH', base + '?auth_id=eq.' + encodeURIComponent(self._uid),
-            { user_id: clientUid }, function(st2) {
-              cb && cb(st2 === 200 || st2 === 204);
-            });
+      // v127 反查优先：同一个账号在多台设备登录，必须认领回同一个 user_id，
+      // 否则新设备会生成新身份 → 被当成第三人 / 看不到历史。
+      // 1) 先按 auth_id 反查已有映射；2) 有→直接用（不改）; 3) 没有→写入本地 clientUid（认领历史）
+      send('GET', base + '?auth_id=eq.' + encodeURIComponent(this._uid) + '&select=user_id&limit=1', null, function(st, rows) {
+        if ((st === 200 || st === 201) && rows && rows.length && rows[0].user_id) {
+          // 服务端已有映射：以服务端为准，把认领到的 user_id 写回本地
+          var bound = rows[0].user_id;
+          try { localStorage.setItem('user_id', bound); localStorage.setItem('sync_userId', bound); } catch (e) {}
+          if (typeof Sync !== 'undefined') Sync.userId = bound;
+          cb && cb(true, bound);
           return;
         }
-        cb && cb(false);
+        if (!clientUid) { cb && cb(false); return; }
+        // 没有映射：写入本地身份（老设备认领历史 / 新设备首次登录）
+        send('POST', base, { auth_id: self._uid, user_id: clientUid }, function(st2) {
+          if (st2 === 200 || st2 === 201) { cb && cb(true, clientUid); return; }
+          if (st2 === 409) {
+            // 并发竞争：再反查一次，以服务端为准
+            send('GET', base + '?auth_id=eq.' + encodeURIComponent(self._uid) + '&select=user_id&limit=1', null, function(st3, r3) {
+              var bound2 = (r3 && r3.length && r3[0].user_id) || clientUid;
+              try { localStorage.setItem('user_id', bound2); localStorage.setItem('sync_userId', bound2); } catch (e) {}
+              cb && cb(st3 === 200, bound2);
+            });
+            return;
+          }
+          cb && cb(false);
+        });
       });
     },
 

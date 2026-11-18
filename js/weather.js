@@ -90,9 +90,15 @@ renderTimeline:function(){
         return; // Not shown in chat timeline
       }else{
         var isPartner=it.sender!=='me';
-        row.style.cssText='margin-bottom:6px;text-align:'+(isPartner?'left':'right');
+        // v128: 在原有气泡旁加头像（左 TA / 右我），气泡样式本身不变
+        var hasProf=(typeof Profile!=='undefined');
+        var av=isPartner?(localStorage.getItem('sync_partnerAvatar')||''):(hasProf?Profile.getAvatar():'');
+        var avName=isPartner?(localStorage.getItem('sync_partnerName')||'TA'):(hasProf?Profile.getName():'我');
+        var on=isPartner?(localStorage.getItem('sync_partnerOnline')==='1'):true;var avHtml=hasProf?Profile.avatarHTML(av,avName,'pf-sm',on):'';
+        row.style.cssText='display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;justify-content:'+(isPartner?'flex-start':'flex-end');
+        if(isPartner&&avHtml)row.insertAdjacentHTML('beforeend',avHtml);
         var bubble=document.createElement('div');
-        bubble.style.cssText='display:inline-block;max-width:72%;background:'+(isPartner?'var(--card)':'var(--primary)')+';color:'+(isPartner?'var(--text)':'white')+';padding:8px 12px;border-radius:12px;font-size:13px;word-break:break-word;box-shadow:'+(isPartner?'var(--shadow)':'none');
+        bubble.style.cssText='display:inline-block;max-width:72%;min-width:0;background:'+(isPartner?'var(--card)':'var(--primary)')+';color:'+(isPartner?'var(--text)':'white')+';padding:8px 12px;border-radius:12px;font-size:13px;word-break:break-word;box-shadow:'+(isPartner?'var(--shadow)':'none');
         if(it.type==='doodle'){
           var img=document.createElement('img');img.src=it.doodleDataUrl;img.style.cssText='max-width:120px;border-radius:8px;cursor:pointer';
           img.addEventListener('click',function(){self._showFull(it.doodleDataUrl)});
@@ -104,6 +110,7 @@ renderTimeline:function(){
         bubble.addEventListener('click',function(){showToast(moodIcon+' '+formatDateFull(it.createdAt),2500)});
         bubble.style.cursor='pointer';
         row.appendChild(bubble);
+        if(!isPartner&&avHtml)row.insertAdjacentHTML('beforeend',avHtml);
       }
       card.appendChild(row);
     });

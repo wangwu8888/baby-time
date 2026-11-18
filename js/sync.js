@@ -25,8 +25,10 @@ var Sync = {
       SUPABASE.AUTH.link(uid, function() {
         SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(uid) + '&limit=1', function(rows) {
           if (!rows || !rows.length) {
-            var nick = localStorage.getItem('sync_partnerName') || '我';
-            SUPABASE.post('users', { user_id: uid, nickname: nick }, function() {});
+            // v128: 昵称取自己的资料（不是给 TA 的备注）；头像一并带上
+            var nick = (typeof Profile !== 'undefined' && Profile.getName()) || '我';
+            var av = (typeof Profile !== 'undefined' && Profile.getAvatar()) || '';
+            SUPABASE.post('users', { user_id: uid, nickname: nick, avatar: av }, function() {});
           }
           cb();
         });
@@ -41,7 +43,8 @@ var Sync = {
       localStorage.setItem('sync_userId', uid);
       // 阶段2：新身份也要先挂到映射表，再写 users 行（v117：改成串行，消除竞态）
       SUPABASE.AUTH.link(uid, function() {
-        SUPABASE.post('users', { user_id: uid, nickname: '' }, function() { cb(); });
+        var av0 = (typeof Profile !== 'undefined' && Profile.getAvatar()) || '';
+        SUPABASE.post('users', { user_id: uid, nickname: '', avatar: av0 }, function() { cb(); });
       });
     }
   },
@@ -69,8 +72,8 @@ var Sync = {
   createRoom: function(password, cb) {
     var self = this;
     this._initUser(function() {
-      // Switching to a brand-new room: fully leave the old one (removes old membership)
-      if (self.roomId) self.leave(false);
+      // 切换到全新房间：先真正退出旧房间（删成员行+重算计数）
+      if (self.roomId) self.leave();
 
       if (SUPABASE.AUTH.isLegacy()) { self._createRoomLegacy(password, cb); return; }
       var attempts = 0;
@@ -178,47 +181,57 @@ var Sync = {
     });
   },
 
+  _memberFails: 0,   // v127: 连续查询失败计数，避免一次抖动就误判 TA 离开
+
   _loadPartner: function(cb) {
     var self = this;
     if (!this.roomId) { cb(); return; }
     var hadPartner = this.partnerId;
-    SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members) {
+    SUPABASE.get('room_members', 'room_id=eq.' + encodeURIComponent(this.roomId), function(members, err) {
+      // v127: 区分「查询失败」与「确实没有成员」。
+      // err 非空（网络/RLS/项目暂停）时绝不动本地配对——这正是「每周被踢」真凶。
+      if (err || !Array.isArray(members)) {
+        self._memberFails = (self._memberFails || 0) + 1;
+        cb();
+        return;
+      }
+      self._memberFails = 0;
       var foundPartner = null;
-      if (members) {
-        // Prefer previously known partner from localStorage
-        var knownId = localStorage.getItem('sync_partnerId');
-        if (knownId) {
-          for (var i = 0; i < members.length; i++) {
-            if (members[i].user_id === knownId) { foundPartner = knownId; break; }
-          }
-        }
-        // Fallback: pick last non-self member
-        if (!foundPartner) {
-          for (var j = members.length - 1; j >= 0; j--) {
-            if (members[j].user_id !== self.userId) { foundPartner = members[j].user_id; break; }
-          }
-        }
-        // Clean up if more than 2 members (stale accounts)
-        if (members && members.length > 2) {
-          for (var i = 0; i < members.length; i++) {
-            if (members[i].user_id !== self.userId && members[i].user_id !== foundPartner) {
-              SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(self.roomId) + '&user_id=eq.' + encodeURIComponent(members[i].user_id), function(){});
-            }
-          }
+      // Prefer previously known partner from localStorage
+      var knownId = localStorage.getItem('sync_partnerId');
+      if (knownId) {
+        for (var i = 0; i < members.length; i++) {
+          if (members[i].user_id === knownId) { foundPartner = knownId; break; }
         }
       }
+      // Fallback: pick last non-self member
+      if (!foundPartner) {
+        for (var j = members.length - 1; j >= 0; j--) {
+          if (members[j].user_id !== self.userId) { foundPartner = members[j].user_id; break; }
+        }
+      }
+      // v127: 不再静默删除第三人。人数上限由服务端 join_room 拦截；
+      // 这里只把成员名单缓存下来供 UI 展示（成员列表可见，异常一眼看出）。
+      self._members = members;
       self._finishLoadPartner(foundPartner, hadPartner, cb);
     });
   },
 
+  _noPartnerHits: 0,  // v127: 连续几次「确认房间只有自己」，才敢判 TA 离开
+
   _finishLoadPartner: function(foundPartner, hadPartner, cb) {
     var self = this;
       if (foundPartner) {
+        self._noPartnerHits = 0;
         var isNew = !hadPartner;
         self.partnerId = foundPartner;
         SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(foundPartner) + '&limit=1', function(users) {
           if (users && users.length) {
             self.partnerName = users[0].nickname || 'TA';
+            // v128: 对方头像缓存到本地，供成员列表 / 提示展示
+            try { localStorage.setItem('sync_partnerAvatar', users[0].avatar || ''); } catch (e) {}
+            // v128: 对方在线状态缓存（聊天头像也要用）
+            try { localStorage.setItem('sync_partnerOnline', self._isOnline(users[0].last_seen) ? '1' : '0'); } catch (e) {}
           }
           localStorage.setItem('sync_partnerId', self.partnerId);
           if (!localStorage.getItem('sync_partnerName_custom')) {
@@ -228,19 +241,22 @@ var Sync = {
           cb();
         });
       } else {
-        // No partner found — but don't clear if just paired (race condition protection)
-        if (hadPartner) {
-          var recentlyPaired = self._partnerSince && (new Date() - self._partnerSince < 15000);
-          if (!recentlyPaired && self.onChange) self.onChange('partner_left');
-          if (recentlyPaired) { cb(); return; } // Keep existing partner, ignore transient failure
-        }
+        // v127: 刚配对完的竞态保护
+        var recentlyPaired = self._partnerSince && (new Date() - self._partnerSince < 15000);
+        if (recentlyPaired) { cb(); return; }
+        // v127: 必须连续 3 次查询都确认「房间里只有我」才判离开。
+        // 单次读取到空数组很可能是对方重连/分页抖动，不该立刻清配对。
+        self._noPartnerHits = (self._noPartnerHits || 0) + 1;
+        if (self._noPartnerHits < 3) { cb(); return; }
+        if (hadPartner && self.onChange) self.onChange('partner_left');
+        // v127: 只清「对方是谁」的运行时状态；
+        // 保留 sync_partnerName / sync_partnerName_custom —— 备注昵称是本地配置，
+        // 对方重新加入后不该被重置成 TA。
         self.partnerId = null;
-        self.partnerName = null;
+        self.partnerName = localStorage.getItem('sync_partnerName') || null;
         self.partnerMood = null;
         self.partnerMessages = [];
         localStorage.removeItem('sync_partnerId');
-        localStorage.removeItem('sync_partnerName');
-        localStorage.removeItem('sync_partnerName_custom');
         cb();
       }
   },
@@ -288,6 +304,8 @@ var Sync = {
         if (!rows || !rows.length) {
           SUPABASE.post('users', { user_id: uid, nickname: self.partnerName || '我' }, function() {});
         }
+        // v128: 把本地资料补齐到云端（昵称/头像改过之后重进也能同步）
+        if (typeof Profile !== 'undefined') Profile.sync(function() {});
         if (self.roomId) {
           self._loadPartner(function() { self._startPolling(); });
         } else {
@@ -311,9 +329,30 @@ var Sync = {
     var self = this;
     self._poll();
     this.timer = setInterval(function() { self._poll(); }, 1500);
+    // v128: 在线心跳——每 20s 把自己的 last_seen 写成当前毫秒时间戳。
+    // 判定阈值 60s（3 倍余量），关页面/切后台约 1 分钟后自动变离线。
+    self._beat();
+    if (self._beatTimer) clearInterval(self._beatTimer);
+    self._beatTimer = setInterval(function() { self._beat(); }, 20000);
     document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && self.roomCode) self._poll();
+      if (!document.hidden && self.roomCode) {
+        self._poll();
+        self._beat(); // 回到前台立刻补一次心跳
+      }
     });
+  },
+
+  // v128: 写自己的在线心跳。RLS 允许本人改自己的 users 行。
+  _beat: function() {
+    if (!this.userId || typeof SUPABASE === 'undefined') return;
+    SUPABASE.patch('users', 'user_id=eq.' + encodeURIComponent(this.userId),
+      { last_seen: Date.now() }, function() {});
+  },
+
+  // v128: 根据 last_seen 判定是否在线（60 秒内有心跳）
+  _isOnline: function(lastSeen) {
+    if (!lastSeen) return false;
+    return (Date.now() - Number(lastSeen)) < 60000;
   },
 
   _poll: function() {
@@ -773,31 +812,63 @@ var seen = false;
     }, function() {});
   },
 
-  // leave(keepMembership)
-  //  - keepMembership=true (default): exit only clears LOCAL state. The room and your
-  //    membership stay intact, so "退出房间 → 重新加入" just works and your partner
-  //    is never disturbed. This is the normal path for the exit button.
-  //  - keepMembership=false: also remove your membership row (used when switching to
-  //    a brand-new room via createRoom).
-  // v113 fix: the old version deleted your member row on every exit, which made the
-  // next join look like a "new identity" and (in v112) nuked the whole room.
-  // It also deleted the entire room when localStorage had a stale 'my_invite_code' —
-  // that dead code path is gone now.
-  leave: function(keepMembership) {
-    if (keepMembership === undefined) keepMembership = true;
+  // v127 leave(): 真正退出房间——服务端删成员行并重算 member_count，
+  // 对方能在几秒内看到「TA已离开」，重新加入也可恢复（账号身份不变）。
+  // 旧版默认只清本地、云端成员还在 → 「假退出」，这是自相矛盾的漏洞之一。
+  leave: function(cb) {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
-    var rid = this.roomId;
-    var uid = this.userId;
-    if (rid && uid && !keepMembership) {
-      SUPABASE.delete('room_members', 'room_id=eq.' + encodeURIComponent(rid) + '&user_id=eq.' + encodeURIComponent(uid), function() {});
+    var self = this;
+    function clearLocal() {
+      localStorage.removeItem('sync_roomCode');
+      localStorage.removeItem('sync_roomId');
+      localStorage.removeItem('sync_partnerId');
+      localStorage.removeItem('room_password');
+      // 保留 sync_partnerName / custom：备注是本地配置，重新连接后不该重置
+      self.roomCode = null; self.roomId = null; self.partnerId = null; self.partnerName = null;
+      self.partnerMood = null; self.myMood = null; self._members = null;
+      self._noPartnerHits = 0; self._memberFails = 0;
+      cb && cb();
     }
-    localStorage.removeItem('sync_roomCode');
-    localStorage.removeItem('sync_roomId');
-    localStorage.removeItem('sync_partnerId');
-    localStorage.removeItem('room_password');
-    // Keep sync_partnerName / sync_partnerName_custom — the nickname you set for TA
-    // should survive an exit, otherwise every rejoin resets it to 'TA'.
-    this.roomCode = null; this.roomId = null; this.partnerId = null; this.partnerName = null;
-    this.partnerMood = null; this.myMood = null;
+    if (this.roomId) {
+      SUPABASE.rpc('leave_room', {}, function() { clearLocal(); });
+      // 兜底：RPC 失败/超时也要让本地退出，不卡住用户
+      setTimeout(function() { if (self.roomId) clearLocal(); }, 4000);
+    } else {
+      clearLocal();
+    }
+  },
+
+  // v127: 清空本房间全部聊天记录（双方一起清空，走服务端 RPC）
+  clearMessages: function(cb) {
+    var self = this;
+    SUPABASE.rpc('clear_room_messages', {}, function(res, err) {
+      if (!err) { self.partnerMessages = []; }
+      cb && cb(!err, res);
+    });
+  },
+
+  // v127: 房间成员列表（id + 昵称 + 是否自己），供 UI 展示「N/2 人」
+  getMembers: function(cb) {
+    if (!this.roomId) { cb && cb([]); return; }
+    var self = this;
+    var members = this._members || [];
+    var ids = members.map(function(m) { return m.user_id; });
+    if (!ids.length) { cb && cb([]); return; }
+    var list = ids.map(function(id) {
+      return { userId: id, isMe: id === self.userId };
+    });
+    // 补齐昵称（读 users 表，RLS 已允许同房间互读）
+    var done = 0;
+    ids.forEach(function(id, i) {
+      SUPABASE.get('users', 'user_id=eq.' + encodeURIComponent(id) + '&select=nickname,avatar,last_seen&limit=1', function(rows) {
+        if (rows && rows.length) {
+          list[i].nickname = rows[0].nickname || '';
+          list[i].avatar = rows[0].avatar || '';
+          list[i].lastSeen = rows[0].last_seen || 0;
+          list[i].online = self._isOnline(rows[0].last_seen);
+        }
+        if (++done === ids.length) cb && cb(list);
+      });
+    });
   }
 };

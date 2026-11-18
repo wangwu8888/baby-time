@@ -17,12 +17,21 @@ var MOOD_CONFIG={sunny:{icon:'☀️',label:'晴朗',accent:'#F59E0B'},cloudy:{i
 function getMyCode(){var c=localStorage.getItem('my_pair_code');if(!c){c='';var ch='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';for(var i=0;i<6;i++)c+=ch[Math.floor(Math.random()*ch.length)];localStorage.setItem('my_pair_code',c)}return c}
 function copyMyCode(){var c=getMyCode();if(navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var el=document.getElementById('copy-hint');if(el){el.style.display='block';setTimeout(function(){el.style.display='none'},1500)}}).catch(function(){prompt('长按复制：',c)})}else{prompt('长按复制：',c)}}
 function editPartnerName(){var c=localStorage.getItem('sync_partnerName')||'TA';var n=prompt('输入TA的称呼：',c);if(n&&n.trim()){var nn=n.trim();localStorage.setItem('sync_partnerName',nn);localStorage.setItem('sync_partnerName_custom','1');if(typeof Sync!=='undefined')Sync.partnerName=nn;if(typeof Weather!=='undefined')Weather.refresh();if(typeof TreeHole!=='undefined')TreeHole.refresh();showToast('已更新为：'+nn,1500)}}
-function leaveAndReset(){if(confirm('确定退出房间吗？')){if(typeof Sync!=='undefined')Sync.leave();localStorage.removeItem('room_password');if(typeof App!=='undefined'){App._paired=false;App._updatePairUI()}if(typeof Weather!=='undefined')Weather.refresh();showToast('已退出房间',2000)}}
+function leaveAndReset(){if(confirm('确定退出房间吗？\n\n退出后对方会看到你离开；下次用同一账号还能重新加入。')){if(typeof Sync!=='undefined')Sync.leave(function(){localStorage.removeItem('room_password');if(typeof App!=='undefined'){App._paired=false;App._updatePairUI()}if(typeof Weather!=='undefined')Weather.refresh();showToast('已退出房间',2000)})}}
+// v127: 清空本房间全部聊天记录（双方一起清空，走服务端 RPC）
+function clearChatHistory(){
+  if(!confirm('确定清空你俩的全部聊天记录吗？\n\n对方那边也会一起清空，且无法恢复。心情、日记、胶囊不受影响。'))return;
+  if(typeof Sync==='undefined'||!Sync.roomId){showToast('还没连接房间',1500);return}
+  Sync.clearMessages(function(ok,res){
+    if(ok){showToast('聊天记录已清空',2000);if(typeof Weather!=='undefined'&&Weather.renderTimeline)Weather.renderTimeline()}
+    else{showToast('清空失败，请重试',2000)}
+  })
+}
 // v113: 清除本地数据时保留身份与配对信息——旧版 localStorage.clear() 会连 user_id 一起删掉，
 // 导致重进时被当成"新身份"，把房间重置、对方被踢。文案承诺的只是"删除记录、涂鸦和设置"。
 function clearAllData(){
   if(!confirm('确定清除本地记录、日记和涂鸦吗？（不会退出房间，连接保持不变）'))return;
-  var keep=['user_id','sync_userId','sync_roomCode','sync_roomId','sync_partnerId','sync_partnerName','sync_partnerName_custom','my_pair_code'];
+  var keep=['user_id','sync_userId','sync_roomCode','sync_roomId','sync_partnerId','sync_partnerName','sync_partnerName_custom','my_pair_code','my_nickname','my_avatar','sync_partnerAvatar'];
   var saved={};
   for(var i=0;i<keep.length;i++){var v=localStorage.getItem(keep[i]);if(v!==null)saved[keep[i]]=v}
   localStorage.clear();
