@@ -423,7 +423,19 @@ var seen = false;
                 }
                 // Sync partner mood from mood_change messages (fallback for weather tab)
                 if (m.type === 'mood_change' && msgObj.sender === 'partner') {
-                  self.partnerMood = { status: c.mood || 'sunny', updatedAt: m.created_at, note: c.note || '' };
+                  var pmObj = { status: c.mood || 'sunny', updatedAt: m.created_at, note: c.note || '' };
+                  self.partnerMood = pmObj;
+                  // v128: 心情备注解密。只有带 noteEncrypted 标记才解；历史明文直接显示。
+                  if (c.noteEncrypted && typeof Crypto !== 'undefined' && Crypto._ready) {
+                    (function(pm, mObj, noteVal) {
+                      decryptPromises.push(
+                        Crypto.decrypt(noteVal).then(function(plain) {
+                          pm.note = plain;
+                          mObj.note = plain;
+                        }).catch(function() {})
+                      );
+                    })(pmObj, msgObj, c.note);
+                  }
                   changed = true;
                   newMoodFromPartner = c.mood || 'sunny';
                 }
@@ -656,11 +668,22 @@ var seen = false;
       });
       if (self.roomId) {
         var content = { mood: st };
-        if (hasNote) content.note = note;
-        SUPABASE.post('messages', {
-          room_id: self.roomId, sender_user_id: self.userId,
-          type: 'mood_change', content: content, created_at: now
-        }, function() {});
+        var postMoodMsg = function(noteVal, encFlag) {
+          if (hasNote) { content.note = noteVal; content.noteEncrypted = encFlag; }
+          SUPABASE.post('messages', {
+            room_id: self.roomId, sender_user_id: self.userId,
+            type: 'mood_change', content: content, created_at: now
+          }, function() {});
+        };
+        // v128: 心情备注也纳入加密（唯一裸露的私密文字）。
+        // 历史明文备注没有 noteEncrypted 标记，读取端按明文处理，不丢老数据。
+        var useNoteEnc = hasNote && ENCRYPTION_ENABLED && typeof Crypto !== 'undefined' && Crypto._ready;
+        if (useNoteEnc) {
+          Crypto.encrypt(note).then(function(encNote) { postMoodMsg(encNote, true); })
+            .catch(function() { postMoodMsg(note, false); });
+        } else {
+          postMoodMsg(note, false);
+        }
       }
     });
   },
